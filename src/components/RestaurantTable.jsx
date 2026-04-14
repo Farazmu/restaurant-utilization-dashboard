@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import ProgressBar, { HEALTH_COLORS } from './ProgressBar.jsx';
 import { CATEGORIES } from '../config/modules.js';
 
@@ -13,7 +13,7 @@ const CAT_ABBREV = {
   'Tips + Office':   'Tips+Off',
 };
 
-export default function RestaurantTable({ restaurants, onRowClick }) {
+function RestaurantTable({ restaurants, onRowClick }) {
   const [sortCol, setSortCol] = useState('overall');
   const [sortDir, setSortDir] = useState('desc');
   const [healthFilter, setHealthFilter] = useState('All');
@@ -54,7 +54,6 @@ export default function RestaurantTable({ restaurants, onRowClick }) {
         bv = (b.aioBuddy || '').toLowerCase();
         return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       } else {
-        // category key
         av = a.categoryScores[sortCol] ?? -1;
         bv = b.categoryScores[sortCol] ?? -1;
       }
@@ -72,54 +71,63 @@ export default function RestaurantTable({ restaurants, onRowClick }) {
   }
 
   const thStyle = (col) => ({
-    padding: '8px 12px',
+    padding: '10px 14px',
     textAlign: col === 'name' || col === 'buddy' ? 'left' : 'right',
-    fontSize: 11,
-    fontWeight: 600,
-    color: sortCol === col ? '#6366f1' : '#6b7280',
+    fontSize: 10,
+    fontWeight: 700,
+    color: sortCol === col ? '#a5b4fc' : '#6b7280',
     textTransform: 'uppercase',
-    letterSpacing: '0.06em',
+    letterSpacing: '0.08em',
     cursor: 'pointer',
     userSelect: 'none',
     whiteSpace: 'nowrap',
     borderBottom: '1px solid #2d3148',
     background: '#12151f',
+    transition: 'color 0.15s',
   });
 
   const SortIcon = ({ col }) => {
-    if (sortCol !== col) return <span style={{ color: '#374151', marginLeft: 4 }}>↕</span>;
-    return <span style={{ color: '#6366f1', marginLeft: 4 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
+    if (sortCol !== col) return <span style={{ color: '#374151', marginLeft: 4, fontSize: 10 }}>{'\u2195'}</span>;
+    return <span style={{ color: '#6366f1', marginLeft: 4, fontSize: 10 }}>{sortDir === 'asc' ? '\u2191' : '\u2193'}</span>;
   };
 
   return (
-    <div>
+    <div style={{ animation: 'fadeUp 0.5s ease 0.2s both' }}>
       {/* Filters */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          type="text"
-          placeholder="Search restaurant..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{
-            background: '#1a1d27',
-            border: '1px solid #2d3148',
-            borderRadius: 8,
-            padding: '6px 12px',
-            color: '#e5e7eb',
-            fontSize: 13,
-            outline: 'none',
-            width: 200,
-          }}
-        />
+        <div style={{ position: 'relative' }}>
+          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#4b5563', fontSize: 13, pointerEvents: 'none' }}>
+            {'\u{1f50d}'}
+          </span>
+          <input
+            type="text"
+            placeholder="Search restaurant..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              background: '#1a1d27',
+              border: '1px solid #2d3148',
+              borderRadius: 10,
+              padding: '8px 12px 8px 32px',
+              color: '#e5e7eb',
+              fontSize: 13,
+              outline: 'none',
+              width: 220,
+              transition: 'border-color 0.15s',
+            }}
+            onFocus={e => e.target.style.borderColor = '#6366f1'}
+            onBlur={e => e.target.style.borderColor = '#2d3148'}
+          />
+        </div>
         <Select value={healthFilter} onChange={setHealthFilter} options={HEALTH_OPTIONS} label="Health" />
         <Select value={buddyFilter} onChange={setBuddyFilter} options={buddyOptions} label="AIO Buddy" />
-        <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>
+        <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4, fontVariantNumeric: 'tabular-nums' }}>
           {sorted.length} of {restaurants.length} restaurants
         </span>
       </div>
 
       {/* Table */}
-      <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #2d3148' }}>
+      <div style={{ overflowX: 'auto', borderRadius: 14, border: '1px solid #2d3148', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr>
@@ -148,7 +156,7 @@ export default function RestaurantTable({ restaurants, onRowClick }) {
             ))}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: '#6b7280', fontSize: 13 }}>
+                <td colSpan={4 + CATEGORIES.length} style={{ textAlign: 'center', padding: '40px', color: '#6b7280', fontSize: 13 }}>
                   No restaurants match your filters
                 </td>
               </tr>
@@ -156,24 +164,33 @@ export default function RestaurantTable({ restaurants, onRowClick }) {
           </tbody>
         </table>
       </div>
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
+
+export default memo(RestaurantTable);
 
 function TableRow({ restaurant: r, idx, onClick }) {
   const [hovered, setHovered] = useState(false);
   const health = r.health;
   const hColor = HEALTH_COLORS[health] || '#6b7280';
 
+  const rowBg = idx % 2 === 0 ? '#12151f' : '#14171f';
   const tdBase = {
-    padding: '9px 12px',
-    borderBottom: '1px solid #1f2433',
-    background: hovered ? '#1f2433' : (idx % 2 === 0 ? '#12151f' : '#13161e'),
-    transition: 'background 0.1s',
+    padding: '10px 14px',
+    borderBottom: '1px solid #1f243320',
+    background: hovered ? '#1e2238' : rowBg,
+    transition: 'background 0.15s',
     cursor: 'pointer',
   };
 
-  const pct = r.overall !== null ? (r.overall * 100).toFixed(1) + '%' : '—';
+  const pct = r.overall !== null ? (r.overall * 100).toFixed(1) + '%' : '---';
 
   return (
     <tr
@@ -184,12 +201,12 @@ function TableRow({ restaurant: r, idx, onClick }) {
       <td style={{ ...tdBase, fontWeight: 500, color: '#f3f4f6', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {r.name}
       </td>
-      <td style={{ ...tdBase, color: '#9ca3af', whiteSpace: 'nowrap' }}>
-        {r.aioBuddy || <span style={{ color: '#374151' }}>—</span>}
+      <td style={{ ...tdBase, color: '#9ca3af', whiteSpace: 'nowrap', fontSize: 12 }}>
+        {r.aioBuddy || <span style={{ color: '#374151' }}>---</span>}
       </td>
       <td style={{ ...tdBase, minWidth: 130 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: hColor, minWidth: 42, textAlign: 'right' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: hColor, minWidth: 42, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
             {pct}
           </span>
           <div style={{ width: 64 }}>
@@ -198,16 +215,16 @@ function TableRow({ restaurant: r, idx, onClick }) {
         </div>
       </td>
       <td style={{ ...tdBase, textAlign: 'right' }}>
-        <HealthChip health={health} />
+        <HealthPill health={health} />
       </td>
       {CATEGORIES.map(cat => {
         const score = r.categoryScores[cat];
         return (
           <td key={cat} style={{ ...tdBase, textAlign: 'right' }}>
             {score !== null ? (
-              <span style={{ fontSize: 12, color: '#d1d5db' }}>{(score * 100).toFixed(0)}%</span>
+              <span style={{ fontSize: 12, color: '#d1d5db', fontVariantNumeric: 'tabular-nums' }}>{(score * 100).toFixed(0)}%</span>
             ) : (
-              <span style={{ color: '#374151', fontSize: 12 }}>—</span>
+              <span style={{ color: '#374151', fontSize: 12 }}>---</span>
             )}
           </td>
         );
@@ -216,18 +233,27 @@ function TableRow({ restaurant: r, idx, onClick }) {
   );
 }
 
-function HealthChip({ health }) {
+function HealthPill({ health }) {
   const color = HEALTH_COLORS[health] || '#6b7280';
   return (
     <span style={{
-      display: 'inline-block',
-      padding: '2px 8px',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      padding: '3px 10px',
       borderRadius: 9999,
       fontSize: 11,
       fontWeight: 600,
-      background: `${color}20`,
+      background: `${color}18`,
       color,
+      border: `1px solid ${color}30`,
+      letterSpacing: '0.02em',
     }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: '50%',
+        background: color, flexShrink: 0,
+        boxShadow: `0 0 6px ${color}60`,
+      }} />
       {health}
     </span>
   );
@@ -241,12 +267,13 @@ function Select({ value, onChange, options, label }) {
       style={{
         background: '#1a1d27',
         border: '1px solid #2d3148',
-        borderRadius: 8,
-        padding: '6px 10px',
+        borderRadius: 10,
+        padding: '8px 12px',
         color: '#e5e7eb',
         fontSize: 13,
         outline: 'none',
         cursor: 'pointer',
+        transition: 'border-color 0.15s',
       }}
     >
       {options.map(o => (
