@@ -9,25 +9,38 @@ const headers = {
   Accept: 'application/json',
 };
 
-async function fetchPage(url) {
-  const res = await fetch(url, { headers });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Asana API error ${res.status}: ${text}`);
+async function fetchPage(url, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const res = await fetch(url, { headers });
+      if (!res.ok) {
+        const text = await res.text();
+        // Retry on server errors and rate limits
+        if ((res.status >= 500 || res.status === 429) && attempt < retries - 1) {
+          await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+          continue;
+        }
+        throw new Error(`Asana API error ${res.status}: ${text}`);
+      }
+      return res.json();
+    } catch (err) {
+      if (attempt < retries - 1 && !err.message.startsWith('Asana API error')) {
+        await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+        continue;
+      }
+      throw err;
+    }
   }
-  return res.json();
 }
 
 // Fetch all sections in the project and build a map of task GID → section name
 async function fetchSectionMap() {
-  // 1. Get all sections
   const sectionsUrl = `${BASE_URL}/projects/${PROJECT_GID}/sections?opt_fields=name&limit=100`;
   const sectionsData = await fetchPage(sectionsUrl);
   const sections = sectionsData.data || [];
 
-  const taskSectionMap = {}; // taskGid → sectionName
+  const taskSectionMap = {};
 
-  // 2. For each section, get its tasks
   for (const section of sections) {
     let nextUrl = `${BASE_URL}/sections/${section.gid}/tasks?opt_fields=gid&limit=100`;
     while (nextUrl) {
@@ -53,7 +66,6 @@ export async function fetchAllTasks() {
     'custom_fields.type',
   ].join(',');
 
-  // Fetch tasks and section mapping in parallel
   const [allTasksRaw, sectionMap] = await Promise.all([
     (async () => {
       let allTasks = [];
@@ -93,7 +105,6 @@ function normalizeTasks(tasks, sectionMap = {}) {
     // Extract AIO Buddy
     const aioBuddy = fieldMap[AIO_BUDDY_FIELD_GID] ?? null;
 
-    // Section from Asana project board
     const section = sectionMap[task.gid] ?? null;
 
     return {

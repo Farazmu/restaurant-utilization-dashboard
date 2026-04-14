@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, memo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
@@ -15,7 +15,7 @@ const CAT_COLORS = {
   'Tips + Office':   '#3b82f6',
 };
 
-export default function DetailDrawer({ restaurant, onClose }) {
+function DetailDrawer({ restaurant, onClose }) {
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') onClose();
@@ -152,6 +152,8 @@ export default function DetailDrawer({ restaurant, onClose }) {
     </>
   );
 }
+
+export default memo(DetailDrawer);
 
 function CategoryGroup({ category, modules, color }) {
   const catScore = calcCatScore(modules);
