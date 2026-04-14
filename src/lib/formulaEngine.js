@@ -25,29 +25,24 @@ export function parseStatus(status) {
   }
 }
 
-// Determine restaurant lifecycle from its module statuses
-// Returns: "Active" | "Onboarding" | "On Hold" | "Churned"
-export function getLifecycle(moduleDetails) {
-  let hasLive = false;
-  let hasOnboarding = false;
-  let hasOnHold = false;
-  let hasSwIssue = false;
-  let hasChurned = false;
+// Section name in Asana that marks live/active restaurants
+const LIVE_SECTION = 'Live Restaurants';
 
-  for (const mod of moduleDetails) {
-    const s = mod.status?.trim();
-    if (s === 'Live') hasLive = true;
-    else if (s === 'Onboarding') hasOnboarding = true;
-    else if (s === 'On Hold') hasOnHold = true;
-    else if (s === 'SW/Product Issue') hasSwIssue = true;
-    else if (s === 'Churned') hasChurned = true;
-  }
+// Determine restaurant lifecycle from its Asana section
+// Returns: "Active" | "Onboarding" | "Other"
+export function getLifecycle(moduleDetails, section) {
+  if (!section) return 'Other';
 
-  if (hasChurned && !hasLive && !hasOnboarding) return 'Churned';
-  if (hasLive) return 'Active';
-  if (hasOnboarding) return 'Onboarding';
-  if (hasOnHold || hasSwIssue) return 'On Hold';
-  return 'Active'; // all Not Required / null → still show as active
+  const s = section.trim().toLowerCase();
+
+  // Only restaurants under the "Live Restaurants" section are active
+  if (s === LIVE_SECTION.toLowerCase()) return 'Active';
+
+  // Restaurants under "Onboarding" section
+  if (s.includes('onboarding')) return 'Onboarding';
+
+  // Everything else (Churned, On Hold, etc.) is excluded
+  return 'Other';
 }
 
 // Weighted utilization for a subset of modules + their statuses
@@ -95,7 +90,7 @@ export function enrichRestaurant(task) {
     ...parseStatus(task.moduleStatuses[mod.fieldGid] ?? null),
   }));
 
-  const lifecycle = getLifecycle(moduleDetails);
+  const lifecycle = getLifecycle(moduleDetails, task.section);
 
   return {
     ...task,
