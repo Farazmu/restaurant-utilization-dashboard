@@ -20,12 +20,12 @@ export default function App() {
     const onboarding = [];
     let excludedCount = 0;
     for (const r of restaurants) {
-      if (r.lifecycle === 'On Hold' || r.lifecycle === 'Churned') {
-        excludedCount++;
+      if (r.lifecycle === 'Active') {
+        active.push(r);
       } else if (r.lifecycle === 'Onboarding') {
         onboarding.push(r);
       } else {
-        active.push(r);
+        excludedCount++;
       }
     }
     return { active, onboarding, excludedCount };
@@ -120,7 +120,7 @@ export default function App() {
               <SummaryBar restaurants={active} />
               {excludedCount > 0 && (
                 <div style={{ fontSize: 11, color: '#4b5563', marginTop: 8 }}>
-                  {excludedCount} On Hold / Churned restaurant{excludedCount !== 1 ? 's' : ''} hidden
+                  {excludedCount} non-live restaurant{excludedCount !== 1 ? 's' : ''} hidden
                 </div>
               )}
             </section>

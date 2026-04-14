@@ -18,6 +18,30 @@ async function fetchPage(url) {
   return res.json();
 }
 
+// Fetch all sections in the project and build a map of task GID → section name
+async function fetchSectionMap() {
+  // 1. Get all sections
+  const sectionsUrl = `${BASE_URL}/projects/${PROJECT_GID}/sections?opt_fields=name&limit=100`;
+  const sectionsData = await fetchPage(sectionsUrl);
+  const sections = sectionsData.data || [];
+
+  const taskSectionMap = {}; // taskGid → sectionName
+
+  // 2. For each section, get its tasks
+  for (const section of sections) {
+    let nextUrl = `${BASE_URL}/sections/${section.gid}/tasks?opt_fields=gid&limit=100`;
+    while (nextUrl) {
+      const data = await fetchPage(nextUrl);
+      for (const task of data.data || []) {
+        taskSectionMap[task.gid] = section.name;
+      }
+      nextUrl = data.next_page?.uri || null;
+    }
+  }
+
+  return taskSectionMap;
+}
+
 export async function fetchAllTasks() {
   const fields = [
     'name',
@@ -29,19 +53,25 @@ export async function fetchAllTasks() {
     'custom_fields.type',
   ].join(',');
 
-  let allTasks = [];
-  let nextUrl = `${BASE_URL}/projects/${PROJECT_GID}/tasks?opt_fields=${encodeURIComponent(fields)}&limit=100`;
+  // Fetch tasks and section mapping in parallel
+  const [allTasksRaw, sectionMap] = await Promise.all([
+    (async () => {
+      let allTasks = [];
+      let nextUrl = `${BASE_URL}/projects/${PROJECT_GID}/tasks?opt_fields=${encodeURIComponent(fields)}&limit=100`;
+      while (nextUrl) {
+        const data = await fetchPage(nextUrl);
+        allTasks = allTasks.concat(data.data || []);
+        nextUrl = data.next_page?.uri || null;
+      }
+      return allTasks;
+    })(),
+    fetchSectionMap(),
+  ]);
 
-  while (nextUrl) {
-    const data = await fetchPage(nextUrl);
-    allTasks = allTasks.concat(data.data || []);
-    nextUrl = data.next_page?.uri || null;
-  }
-
-  return normalizeTasks(allTasks);
+  return normalizeTasks(allTasksRaw, sectionMap);
 }
 
-function normalizeTasks(tasks) {
+function normalizeTasks(tasks, sectionMap = {}) {
   return tasks.map(task => {
     // Build a map of fieldGid → enum value name
     const fieldMap = {};
@@ -63,11 +93,15 @@ function normalizeTasks(tasks) {
     // Extract AIO Buddy
     const aioBuddy = fieldMap[AIO_BUDDY_FIELD_GID] ?? null;
 
+    // Section from Asana project board
+    const section = sectionMap[task.gid] ?? null;
+
     return {
       id: task.gid,
       name: task.name,
       aioBuddy,
       moduleStatuses,
+      section,
     };
   });
 }

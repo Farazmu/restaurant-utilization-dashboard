@@ -118,8 +118,9 @@ export default function DetailDrawer({ restaurant, onClose }) {
               />
               <Tooltip
                 cursor={{ fill: 'rgba(99,102,241,0.08)' }}
-                contentStyle={{ background: '#1a1d27', border: '1px solid #2d3148', borderRadius: 8, fontSize: 12 }}
+                contentStyle={{ background: '#1a1d27', border: '1px solid #2d3148', borderRadius: 8, fontSize: 12, color: '#e5e7eb' }}
                 labelStyle={{ color: '#e5e7eb' }}
+                itemStyle={{ color: '#e5e7eb' }}
                 formatter={(v, name, props) => [`${v}%`, props.payload.name]}
               />
               <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={18}>
