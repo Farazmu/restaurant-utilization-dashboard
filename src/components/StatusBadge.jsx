@@ -36,6 +36,8 @@ export function getStatusConfig(status) {
       return { bg: 'rgba(239,68,68,0.15)', color: '#ef4444', label: 'Churned' };
     case 'Not Required':
       return { bg: '#1f2937', color: '#6b7280', label: 'Not Required' };
+    case 'Not Applicable':
+      return { bg: '#1f2937', color: '#6b7280', label: 'Not Applicable' };
     default:
       return { bg: '#1f2937', color: '#6b7280', label: status };
   }
