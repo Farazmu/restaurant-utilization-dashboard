@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
-import { TOOLTIP_STYLE, CAT_COLORS } from './chartUtils.js';
+import { CAT_COLORS } from './chartUtils.js';
+import CustomTooltip, { barCursor } from './CustomTooltip.jsx';
 
 export default function ModuleAdoption({ restaurants }) {
   const data = useMemo(() => {
@@ -39,12 +40,16 @@ export default function ModuleAdoption({ restaurants }) {
           type="category" dataKey="name" width={120}
           tick={{ fill: '#9ca3af', fontSize: 10 }} axisLine={false} tickLine={false}
         />
-        <Tooltip {...TOOLTIP_STYLE} cursor={{ fill: 'rgba(99,102,241,0.08)' }}
-          formatter={(v, name, props) => [
-            `${v.toFixed(1)}% (${props.payload.live}/${props.payload.total})`,
-            'Adoption Rate',
-          ]}
-        />
+        <Tooltip cursor={barCursor} content={
+          <CustomTooltip formatter={(entry) => {
+            const d = entry.payload;
+            return {
+              title: d.name,
+              primary: `${d.adoptionPct.toFixed(1)}% \u2014 ${d.live} of ${d.total} restaurants`,
+              secondary: d.category,
+            };
+          }} />
+        } />
         <Bar dataKey="adoptionPct" radius={[0, 4, 4, 0]} maxBarSize={18}>
           {data.map((entry, i) => (
             <Cell key={i} fill={entry.color} fillOpacity={0.85} />

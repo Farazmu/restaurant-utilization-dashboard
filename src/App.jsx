@@ -3,15 +3,16 @@ import { fetchAllTasks } from './lib/asanaClient.js';
 import { enrichAll } from './lib/formulaEngine.js';
 import { getCachedData, setCachedData } from './lib/cache.js';
 import { getSession, setSession, clearSession } from './lib/authStore.js';
+import { runFormulaVerification } from './lib/verifyOnLoad.js';
 import LoginScreen from './components/LoginScreen.jsx';
 import SummaryBar from './components/SummaryBar.jsx';
 import RestaurantTable from './components/RestaurantTable.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
 import TopBottom from './components/TopBottom.jsx';
-import MarketingLiveSection from './components/MarketingLiveSection.jsx';
 import AnalyticsTab from './components/AnalyticsTab.jsx';
 import TabNav from './components/TabNav.jsx';
 import DashboardTab from './components/DashboardTab.jsx';
+import ModuleBreakdownTab from './components/ModuleBreakdownTab.jsx';
 
 export default function App() {
   const [authTeam, setAuthTeam] = useState(() => {
@@ -26,7 +27,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     try {
       const saved = localStorage.getItem('aio-active-tab');
-      return saved === 'overview' || saved === 'dashboard' || saved === 'analytics' ? saved : 'overview';
+      return saved === 'overview' || saved === 'dashboard' || saved === 'analytics' || saved === 'modules' ? saved : 'overview';
     } catch { return 'overview'; }
   });
 
@@ -80,6 +81,7 @@ export default function App() {
       setRestaurants(enriched);
       setCachedData(enriched);
       setLastFetched(new Date());
+      runFormulaVerification(enriched);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -196,7 +198,7 @@ export default function App() {
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Main */}
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 28px' }}>
+      <div style={{ maxWidth: activeTab === 'modules' ? 'none' : 1400, margin: '0 auto', padding: '24px 28px' }}>
         {error && (
           <div style={{
             background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
@@ -242,20 +244,17 @@ export default function App() {
             </section>
 
             {/* Live Restaurants Table */}
-            <section style={{ marginBottom: 36 }}>
+            <section style={{ marginBottom: 32 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
                 Live Restaurants
               </div>
               <RestaurantTable restaurants={active} onRowClick={handleSelect} />
             </section>
-
-            {/* Marketing Live */}
-            <section style={{ marginBottom: 32 }}>
-              <MarketingLiveSection restaurants={active} onRowClick={handleSelect} />
-            </section>
           </>
         ) : activeTab === 'dashboard' ? (
           <DashboardTab restaurants={active} allRestaurants={restaurants} />
+        ) : activeTab === 'modules' ? (
+          <ModuleBreakdownTab restaurants={active} onRowClick={handleSelect} />
         ) : (
           <AnalyticsTab restaurants={active} />
         )}

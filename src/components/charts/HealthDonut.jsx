@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { TOOLTIP_STYLE, HEALTH_COLORS_MAP } from './chartUtils.js';
+import { HEALTH_COLORS_MAP } from './chartUtils.js';
+import CustomTooltip from './CustomTooltip.jsx';
 
 const HEALTH_ORDER = ['Healthy', 'Moderate', 'At Risk', 'Critical'];
 
@@ -35,9 +36,12 @@ export default function HealthDonut({ restaurants }) {
               <Cell key={i} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip {...TOOLTIP_STYLE}
-            formatter={(value, name) => [`${value} (${((value / total) * 100).toFixed(1)}%)`, name]}
-          />
+          <Tooltip content={
+            <CustomTooltip formatter={(entry) => ({
+              title: entry.name,
+              primary: `${entry.value} restaurant${entry.value !== 1 ? 's' : ''} (${((entry.value / total) * 100).toFixed(1)}%)`,
+            })} />
+          } />
           <Legend
             verticalAlign="bottom"
             iconType="circle"
