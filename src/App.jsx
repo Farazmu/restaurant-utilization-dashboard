@@ -2,44 +2,69 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchAllTasks } from './lib/asanaClient.js';
 import { enrichAll } from './lib/formulaEngine.js';
 import { getCachedData, setCachedData } from './lib/cache.js';
+import { getSession, setSession, clearSession } from './lib/authStore.js';
+import LoginScreen from './components/LoginScreen.jsx';
 import SummaryBar from './components/SummaryBar.jsx';
 import RestaurantTable from './components/RestaurantTable.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
 import TopBottom from './components/TopBottom.jsx';
-import OnboardingSection from './components/OnboardingSection.jsx';
+import MarketingLiveSection from './components/MarketingLiveSection.jsx';
 import AnalyticsTab from './components/AnalyticsTab.jsx';
-
-const TABS = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'analytics', label: 'Analytics' },
-];
+import TabNav from './components/TabNav.jsx';
+import DashboardTab from './components/DashboardTab.jsx';
 
 export default function App() {
+  const [authTeam, setAuthTeam] = useState(() => {
+    const session = getSession();
+    return session ? session.team : null;
+  });
   const [restaurants, setRestaurants] = useState([]);
   const [loadingPhase, setLoadingPhase] = useState(null); // null | 'loading' | 'processing' | 'refreshing'
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [lastFetched, setLastFetched] = useState(null);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aio-active-tab');
+      return saved === 'overview' || saved === 'dashboard' || saved === 'analytics' ? saved : 'overview';
+    } catch { return 'overview'; }
+  });
+
+  // Persist active tab to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('aio-active-tab', activeTab); } catch {}
+  }, [activeTab]);
+
+  const handleLogin = useCallback((team) => {
+    setSession(team);
+    setAuthTeam(team);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    clearSession();
+    setAuthTeam(null);
+  }, []);
+
+  // Show login screen if not authenticated
+  if (!authTeam) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
   const isBackgroundRefresh = loadingPhase === 'refreshing';
 
   // Split restaurants by lifecycle (section-based)
-  const { active, onboarding, excludedCount } = useMemo(() => {
+  const { active, excludedCount } = useMemo(() => {
     const active = [];
-    const onboarding = [];
     let excludedCount = 0;
     for (const r of restaurants) {
       if (r.lifecycle === 'Active') {
         active.push(r);
-      } else if (r.lifecycle === 'Onboarding') {
-        onboarding.push(r);
       } else {
         excludedCount++;
       }
     }
-    return { active, onboarding, excludedCount };
+    return { active, excludedCount };
   }, [restaurants]);
 
   const handleSelect = useCallback((r) => setSelected(r), []);
@@ -147,44 +172,28 @@ export default function App() {
           >
             {loading ? 'Loading...' : '\u21ba Refresh'}
           </button>
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'transparent',
+              border: '1px solid #2d3148',
+              borderRadius: 9,
+              padding: '6px 14px',
+              color: '#6b7280',
+              fontSize: 11,
+              cursor: 'pointer',
+              fontWeight: 600,
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {authTeam} &middot; Logout
+          </button>
         </div>
       </div>
 
       {/* Tab Bar */}
-      <div style={{
-        background: '#0f1117',
-        borderBottom: '1px solid #1f2433',
-        padding: '0 28px',
-        display: 'flex',
-        gap: 0,
-        position: 'sticky',
-        top: 52,
-        zIndex: 49,
-      }}>
-        {TABS.map(tab => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                background: 'none',
-                border: 'none',
-                borderBottom: isActive ? '2px solid #6366f1' : '2px solid transparent',
-                padding: '12px 20px',
-                color: isActive ? '#a5b4fc' : '#6b7280',
-                fontSize: 13,
-                fontWeight: isActive ? 700 : 500,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                letterSpacing: '0.02em',
-              }}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Main */}
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 28px' }}>
@@ -215,7 +224,7 @@ export default function App() {
 
         {loading && restaurants.length === 0 ? (
           <LoadingState phase={loadingPhase} />
-        ) : activeTab === 'dashboard' ? (
+        ) : activeTab === 'overview' ? (
           <>
             {/* Summary — active restaurants only */}
             <section style={{ marginBottom: 24 }}>
@@ -232,21 +241,21 @@ export default function App() {
               <TopBottom restaurants={active} />
             </section>
 
-            {/* Active Restaurants Table */}
+            {/* Live Restaurants Table */}
             <section style={{ marginBottom: 36 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
-                Active Restaurants
+                Live Restaurants
               </div>
               <RestaurantTable restaurants={active} onRowClick={handleSelect} />
             </section>
 
-            {/* Onboarding Restaurants */}
-            {onboarding.length > 0 && (
-              <section>
-                <OnboardingSection restaurants={onboarding} onRowClick={handleSelect} />
-              </section>
-            )}
+            {/* Marketing Live */}
+            <section style={{ marginBottom: 32 }}>
+              <MarketingLiveSection restaurants={active} onRowClick={handleSelect} />
+            </section>
           </>
+        ) : activeTab === 'dashboard' ? (
+          <DashboardTab restaurants={active} allRestaurants={restaurants} />
         ) : (
           <AnalyticsTab restaurants={active} />
         )}

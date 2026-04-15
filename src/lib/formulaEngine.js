@@ -102,6 +102,23 @@ export function enrichRestaurant(task) {
   };
 }
 
+// Weighted utilization across all Marketing (On) + Marketing (Off) modules
+// Returns 0–1 or null if no included modules
+export function calcMarketingScore(restaurant) {
+  const marketingModules = restaurant.moduleDetails.filter(
+    m => m.category === 'Marketing (On)' || m.category === 'Marketing (Off)'
+  );
+  let numerator = 0;
+  let denominator = 0;
+  for (const m of marketingModules) {
+    if (m.included) {
+      numerator += m.weight * m.score;
+      denominator += m.weight;
+    }
+  }
+  return denominator === 0 ? null : numerator / denominator;
+}
+
 // Enrich all restaurants
 export function enrichAll(tasks) {
   return tasks
