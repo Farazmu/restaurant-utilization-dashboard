@@ -408,7 +408,7 @@ function ModuleBreakdownTab({ restaurants, onRowClick }) {
                     top: 0,
                     textAlign: 'center',
                     cursor: 'default',
-                    background: `${CAT_COLORS[cs.category] || '#6366f1'}18`,
+                    background: `linear-gradient(${CAT_COLORS[cs.category] || '#6366f1'}18, ${CAT_COLORS[cs.category] || '#6366f1'}18), #0f1117`,
                     borderBottom: `2px solid ${CAT_COLORS[cs.category] || '#6366f1'}`,
                     borderRight: '1px solid #2d3148',
                     fontSize: 10,
