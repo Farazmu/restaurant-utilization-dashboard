@@ -12,6 +12,8 @@ import MarketingLiveSection from './components/MarketingLiveSection.jsx';
 import AnalyticsTab from './components/AnalyticsTab.jsx';
 import TabNav from './components/TabNav.jsx';
 import DashboardTab from './components/DashboardTab.jsx';
+import ModuleTab from './components/ModuleTab.jsx';
+import IssuesTab from './components/IssuesTab.jsx';
 
 export default function App() {
   const [authTeam, setAuthTeam] = useState(() => {
@@ -26,7 +28,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     try {
       const saved = localStorage.getItem('aio-active-tab');
-      return saved === 'overview' || saved === 'dashboard' || saved === 'analytics' ? saved : 'overview';
+      return ['overview', 'dashboard', 'analytics', 'modules', 'issues'].includes(saved) ? saved : 'overview';
     } catch { return 'overview'; }
   });
 
@@ -44,14 +46,6 @@ export default function App() {
     clearSession();
     setAuthTeam(null);
   }, []);
-
-  // Show login screen if not authenticated
-  if (!authTeam) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
-  const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
-  const isBackgroundRefresh = loadingPhase === 'refreshing';
 
   // Split restaurants by lifecycle (section-based)
   const { active, excludedCount } = useMemo(() => {
@@ -93,6 +87,7 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (!authTeam) return;
     const cached = getCachedData();
     if (cached) {
       setRestaurants(cached.data);
@@ -103,7 +98,15 @@ export default function App() {
     } else {
       load();
     }
-  }, []);
+  }, [authTeam]);
+
+  // Show login screen if not authenticated
+  if (!authTeam) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
+  const isBackgroundRefresh = loadingPhase === 'refreshing';
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f1117', color: '#f3f4f6', fontFamily: 'Inter, sans-serif' }}>
@@ -196,7 +199,7 @@ export default function App() {
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Main */}
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 28px' }}>
+      <div style={{ maxWidth: activeTab === 'modules' || activeTab === 'issues' ? 'none' : 1400, margin: '0 auto', padding: '24px 28px' }}>
         {error && (
           <div style={{
             background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
@@ -256,6 +259,10 @@ export default function App() {
           </>
         ) : activeTab === 'dashboard' ? (
           <DashboardTab restaurants={active} allRestaurants={restaurants} />
+        ) : activeTab === 'modules' ? (
+          <ModuleTab restaurants={active} />
+        ) : activeTab === 'issues' ? (
+          <IssuesTab restaurants={active} />
         ) : (
           <AnalyticsTab restaurants={active} />
         )}
