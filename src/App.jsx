@@ -10,14 +10,11 @@ import RestaurantTable from './components/RestaurantTable.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
 import TopBottom from './components/TopBottom.jsx';
 import TabNav from './components/TabNav.jsx';
-import DashboardTab from './components/AnalyticsTab.jsx';
-import AnalyticsTab from './components/DashboardTab.jsx';
-import ModuleBreakdownTab from './components/ModuleBreakdownTab.jsx';
+import DashboardTab from './components/DashboardTab.jsx';
+import AnalyticsTab from './components/AnalyticsTab.jsx';
 import SectionFilterBar from './components/SectionFilterBar.jsx';
 import MarketingLiveSection from './components/MarketingLiveSection.jsx';
-import AnalyticsTab from './components/AnalyticsTab.jsx';
-import TabNav from './components/TabNav.jsx';
-import DashboardTab from './components/DashboardTab.jsx';
+import OnboardingSection from './components/OnboardingSection.jsx';
 import ModuleTab from './components/ModuleTab.jsx';
 import IssuesTab from './components/IssuesTab.jsx';
 
@@ -84,9 +81,6 @@ export default function App() {
     setAuthTeam(null);
   }, []);
 
-  const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
-  const isBackgroundRefresh = loadingPhase === 'refreshing';
-
   // Step 1: Derive team options from ALL restaurants
   const teamOptions = useMemo(() => {
     const teams = new Set();
@@ -118,9 +112,6 @@ export default function App() {
   const { filtered, excludedCount } = useMemo(() => {
     const activeSections = selectedSections || DEFAULT_SECTIONS;
     const filtered = [];
-  // Split restaurants by lifecycle (section-based)
-  const { active, excludedCount } = useMemo(() => {
-    const active = [];
     let excludedCount = 0;
     for (const r of teamFiltered) {
       if (activeSections.includes(r.section)) {
@@ -189,6 +180,7 @@ export default function App() {
 
   const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
   const isBackgroundRefresh = loadingPhase === 'refreshing';
+  const active = filtered;
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f1117', color: '#f3f4f6', fontFamily: 'Inter, sans-serif' }}>
@@ -390,16 +382,6 @@ export default function App() {
           50% { opacity: 0.3; }
         }
       `}</style>
-    </div>
-  );
-}
-
-function IssuesPlaceholder() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 12 }}>
-      <div style={{ fontSize: 32 }}>🔧</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: '#f3f4f6' }}>Issues Tab</div>
-      <div style={{ fontSize: 13, color: '#6b7280' }}>Coming soon — merge from claude/cool-austin</div>
     </div>
   );
 }
