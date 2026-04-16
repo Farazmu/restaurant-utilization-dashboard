@@ -15,7 +15,11 @@ import AnalyticsTab from './components/DashboardTab.jsx';
 import ModuleBreakdownTab from './components/ModuleBreakdownTab.jsx';
 import SectionFilterBar from './components/SectionFilterBar.jsx';
 import MarketingLiveSection from './components/MarketingLiveSection.jsx';
-import OnboardingSection from './components/OnboardingSection.jsx';
+import AnalyticsTab from './components/AnalyticsTab.jsx';
+import TabNav from './components/TabNav.jsx';
+import DashboardTab from './components/DashboardTab.jsx';
+import ModuleTab from './components/ModuleTab.jsx';
+import IssuesTab from './components/IssuesTab.jsx';
 
 const SECTION_ORDER = [
   'Live Restaurants', 'Marketing Live', 'Onboarding',
@@ -114,6 +118,9 @@ export default function App() {
   const { filtered, excludedCount } = useMemo(() => {
     const activeSections = selectedSections || DEFAULT_SECTIONS;
     const filtered = [];
+  // Split restaurants by lifecycle (section-based)
+  const { active, excludedCount } = useMemo(() => {
+    const active = [];
     let excludedCount = 0;
     for (const r of teamFiltered) {
       if (activeSections.includes(r.section)) {
@@ -179,6 +186,9 @@ export default function App() {
   if (!authTeam) {
     return <LoginScreen onLogin={handleLogin} />;
   }
+
+  const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
+  const isBackgroundRefresh = loadingPhase === 'refreshing';
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f1117', color: '#f3f4f6', fontFamily: 'Inter, sans-serif' }}>
@@ -290,7 +300,7 @@ export default function App() {
       />
 
       {/* Main */}
-      <div style={{ maxWidth: activeTab === 'modules' ? 'none' : 1400, margin: '0 auto', padding: '24px 28px' }}>
+      <div style={{ maxWidth: activeTab === 'modules' || activeTab === 'issues' ? 'none' : 1400, margin: '0 auto', padding: '24px 28px' }}>
         {error && (
           <div style={{
             background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
@@ -359,15 +369,14 @@ export default function App() {
             </section>
           </>
         ) : activeTab === 'dashboard' ? (
-          <DashboardTab restaurants={filtered} />
-        ) : activeTab === 'analytics' ? (
-          <AnalyticsTab restaurants={filtered} allRestaurants={restaurants} />
+          <DashboardTab restaurants={active} allRestaurants={restaurants} />
         ) : activeTab === 'modules' ? (
-          <ModuleBreakdownTab restaurants={filtered} onRowClick={handleSelect} />
+          <ModuleTab restaurants={active} />
         ) : activeTab === 'issues' ? (
-          <IssuesPlaceholder />
-        ) : null
-        }
+          <IssuesTab restaurants={active} />
+        ) : (
+          <AnalyticsTab restaurants={active} />
+        )}
       </div>
 
       {/* Detail Drawer */}

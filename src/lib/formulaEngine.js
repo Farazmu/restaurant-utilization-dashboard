@@ -19,8 +19,6 @@ export function parseStatus(status) {
       return { score: 0, included: true };
     case 'Not Required':
       return { score: 0, included: false };
-    case 'Not Applicable':
-      return { score: 0, included: false };
     default:
       // Unknown / null → excluded
       return { score: 0, included: false };
