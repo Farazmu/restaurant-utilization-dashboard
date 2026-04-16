@@ -3,7 +3,6 @@ import { memo } from 'react';
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'analytics', label: 'Analytics' },
   { id: 'modules', label: 'Modules' },
 ];
 

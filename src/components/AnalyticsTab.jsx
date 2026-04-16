@@ -8,6 +8,7 @@ import {
 import { HEALTH_COLORS } from './ProgressBar.jsx';
 import { CATEGORIES } from '../config/modules.js';
 import CustomTooltip, { barCursor, scatterCursor } from './charts/CustomTooltip.jsx';
+import ModuleAdoption from './charts/ModuleAdoption.jsx';
 
 const CAT_COLORS = {
   'Order & Pay':     '#6366f1',
@@ -289,7 +290,12 @@ export default function AnalyticsTab({ restaurants }) {
         </ChartCard>
       </div>
 
-      {/* Row 6: Module Adoption Heatmap (full width) */}
+      {/* Row 6: Module Adoption Rate (full width) */}
+      <ChartCard title="Module Adoption Rate" subtitle="Percentage of restaurants with each module live" style={{ overflow: 'auto', maxHeight: 700 }}>
+        <ModuleAdoption restaurants={restaurants} />
+      </ChartCard>
+
+      {/* Row 7: Module Adoption Heatmap (full width) */}
       <ChartCard title="Module Adoption Heatmap" subtitle="Percentage of restaurants with each module live">
         <div style={{ overflowX: 'auto' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

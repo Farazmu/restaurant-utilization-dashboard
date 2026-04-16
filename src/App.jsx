@@ -9,9 +9,8 @@ import SummaryBar from './components/SummaryBar.jsx';
 import RestaurantTable from './components/RestaurantTable.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
 import TopBottom from './components/TopBottom.jsx';
-import AnalyticsTab from './components/AnalyticsTab.jsx';
 import TabNav from './components/TabNav.jsx';
-import DashboardTab from './components/DashboardTab.jsx';
+import DashboardTab from './components/AnalyticsTab.jsx';
 import ModuleBreakdownTab from './components/ModuleBreakdownTab.jsx';
 
 export default function App() {
@@ -27,7 +26,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     try {
       const saved = localStorage.getItem('aio-active-tab');
-      return saved === 'overview' || saved === 'dashboard' || saved === 'analytics' || saved === 'modules' ? saved : 'overview';
+      return saved === 'overview' || saved === 'dashboard' || saved === 'modules' ? saved : 'overview';
     } catch { return 'overview'; }
   });
 
@@ -252,11 +251,9 @@ export default function App() {
             </section>
           </>
         ) : activeTab === 'dashboard' ? (
-          <DashboardTab restaurants={active} allRestaurants={restaurants} />
-        ) : activeTab === 'modules' ? (
-          <ModuleBreakdownTab restaurants={active} onRowClick={handleSelect} />
+          <DashboardTab restaurants={active} />
         ) : (
-          <AnalyticsTab restaurants={active} />
+          <ModuleBreakdownTab restaurants={active} onRowClick={handleSelect} />
         )}
       </div>
 
