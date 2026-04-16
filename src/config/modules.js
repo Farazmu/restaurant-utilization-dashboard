@@ -42,3 +42,4 @@ export const CATEGORIES = [
 ];
 
 export const AIO_BUDDY_FIELD_GID = "1214053257936542";
+export const TEAM_FIELD_GID = "1214079566888627";

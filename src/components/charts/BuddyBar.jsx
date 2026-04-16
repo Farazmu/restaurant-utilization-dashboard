@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
-import { TOOLTIP_STYLE } from './chartUtils.js';
+import CustomTooltip, { barCursor } from './CustomTooltip.jsx';
 
 export default function BuddyBar({ restaurants }) {
   const data = useMemo(() => {
@@ -38,9 +38,15 @@ export default function BuddyBar({ restaurants }) {
           type="category" dataKey="name" width={100}
           tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false}
         />
-        <Tooltip {...TOOLTIP_STYLE} cursor={{ fill: 'rgba(99,102,241,0.08)' }}
-          formatter={(v, name, props) => [`${v.toFixed(1)}% (${props.payload.count} restaurants)`, 'Avg Utilization']}
-        />
+        <Tooltip cursor={barCursor} content={
+          <CustomTooltip formatter={(entry) => {
+            const d = entry.payload;
+            return {
+              title: d.name,
+              primary: `${d.avg.toFixed(1)}% \u2014 ${d.count} restaurant${d.count !== 1 ? 's' : ''}`,
+            };
+          }} />
+        } />
         <Bar dataKey="avg" radius={[0, 6, 6, 0]} maxBarSize={24}>
           {data.map((entry, i) => (
             <Cell key={i} fill={entry.color} />

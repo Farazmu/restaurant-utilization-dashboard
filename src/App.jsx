@@ -3,17 +3,25 @@ import { fetchAllTasks } from './lib/asanaClient.js';
 import { enrichAll } from './lib/formulaEngine.js';
 import { getCachedData, setCachedData } from './lib/cache.js';
 import { getSession, setSession, clearSession } from './lib/authStore.js';
+import { runFormulaVerification } from './lib/verifyOnLoad.js';
 import LoginScreen from './components/LoginScreen.jsx';
 import SummaryBar from './components/SummaryBar.jsx';
 import RestaurantTable from './components/RestaurantTable.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
 import TopBottom from './components/TopBottom.jsx';
-import MarketingLiveSection from './components/MarketingLiveSection.jsx';
-import AnalyticsTab from './components/AnalyticsTab.jsx';
 import TabNav from './components/TabNav.jsx';
-import DashboardTab from './components/DashboardTab.jsx';
-import ModuleTab from './components/ModuleTab.jsx';
-import IssuesTab from './components/IssuesTab.jsx';
+import DashboardTab from './components/AnalyticsTab.jsx';
+import AnalyticsTab from './components/DashboardTab.jsx';
+import ModuleBreakdownTab from './components/ModuleBreakdownTab.jsx';
+import SectionFilterBar from './components/SectionFilterBar.jsx';
+import MarketingLiveSection from './components/MarketingLiveSection.jsx';
+import OnboardingSection from './components/OnboardingSection.jsx';
+
+const SECTION_ORDER = [
+  'Live Restaurants', 'Marketing Live', 'Onboarding',
+  'Marketing Onboarding', 'On Hold Restaurants', 'Churned Restaurants',
+];
+const DEFAULT_SECTIONS = ['Live Restaurants'];
 
 export default function App() {
   const [authTeam, setAuthTeam] = useState(() => {
@@ -31,11 +39,36 @@ export default function App() {
       return ['overview', 'dashboard', 'analytics', 'modules', 'issues'].includes(saved) ? saved : 'overview';
     } catch { return 'overview'; }
   });
+  const [selectedSections, setSelectedSections] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aio-selected-sections');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [selectedTeam, setSelectedTeam] = useState(() => {
+    try {
+      return localStorage.getItem('aio-selected-team') || 'All';
+    } catch { return 'All'; }
+  });
 
   // Persist active tab to localStorage
   useEffect(() => {
     try { localStorage.setItem('aio-active-tab', activeTab); } catch {}
   }, [activeTab]);
+
+  // Persist selected sections to localStorage
+  useEffect(() => {
+    try {
+      if (selectedSections) {
+        localStorage.setItem('aio-selected-sections', JSON.stringify(selectedSections));
+      }
+    } catch {}
+  }, [selectedSections]);
+
+  // Persist selected team to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('aio-selected-team', selectedTeam); } catch {}
+  }, [selectedTeam]);
 
   const handleLogin = useCallback((team) => {
     setSession(team);
@@ -47,24 +80,65 @@ export default function App() {
     setAuthTeam(null);
   }, []);
 
-  // Split restaurants by lifecycle (section-based)
-  const { active, excludedCount } = useMemo(() => {
-    const active = [];
-    let excludedCount = 0;
+  const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
+  const isBackgroundRefresh = loadingPhase === 'refreshing';
+
+  // Step 1: Derive team options from ALL restaurants
+  const teamOptions = useMemo(() => {
+    const teams = new Set();
     for (const r of restaurants) {
-      if (r.lifecycle === 'Active') {
-        active.push(r);
+      if (r.team) teams.add(r.team);
+    }
+    return ['All', ...[...teams].sort()];
+  }, [restaurants]);
+
+  // Step 2: Apply team filter first
+  const teamFiltered = useMemo(() => {
+    if (selectedTeam === 'All') return restaurants;
+    return restaurants.filter(r => r.team === selectedTeam);
+  }, [restaurants, selectedTeam]);
+
+  // Step 3: Derive section counts from team-filtered data
+  const sectionMeta = useMemo(() => {
+    const countMap = {};
+    for (const r of teamFiltered) {
+      const s = r.section || '(No Section)';
+      countMap[s] = (countMap[s] || 0) + 1;
+    }
+    const known = SECTION_ORDER.filter(s => countMap[s]);
+    const unknown = Object.keys(countMap).filter(s => !SECTION_ORDER.includes(s)).sort();
+    return [...known, ...unknown].map(name => ({ name, count: countMap[name] }));
+  }, [teamFiltered]);
+
+  // Step 4: Apply section filter on team-filtered data
+  const { filtered, excludedCount } = useMemo(() => {
+    const activeSections = selectedSections || DEFAULT_SECTIONS;
+    const filtered = [];
+    let excludedCount = 0;
+    for (const r of teamFiltered) {
+      if (activeSections.includes(r.section)) {
+        filtered.push(r);
       } else {
         excludedCount++;
       }
     }
-    return { active, excludedCount };
-  }, [restaurants]);
+    return { filtered, excludedCount };
+  }, [teamFiltered, selectedSections]);
+
+  // Dynamic section title for the overview tab
+  const sectionTitle = useMemo(() => {
+    const active = selectedSections || DEFAULT_SECTIONS;
+    if (active.length === 0) return 'No Sections Selected';
+    if (active.length === 1) return active[0];
+    if (active.length === sectionMeta.length) return 'All Restaurants';
+    if (active.length <= 3) return active.join(' + ');
+    return `${active.length} Sections`;
+  }, [selectedSections, sectionMeta]);
 
   const handleSelect = useCallback((r) => setSelected(r), []);
   const handleClose = useCallback(() => setSelected(null), []);
 
-  async function fetchAndEnrich() {
+  const fetchAndEnrich = useCallback(async () => {
     setLoadingPhase(prev => prev === 'refreshing' ? 'refreshing' : 'loading');
     setError(null);
     try {
@@ -74,17 +148,18 @@ export default function App() {
       setRestaurants(enriched);
       setCachedData(enriched);
       setLastFetched(new Date());
+      runFormulaVerification(enriched);
     } catch (e) {
       setError(e.message);
     } finally {
       setLoadingPhase(null);
     }
-  }
+  }, []);
 
-  function load() {
+  const load = useCallback(() => {
     setLoadingPhase('loading');
     fetchAndEnrich();
-  }
+  }, [fetchAndEnrich]);
 
   useEffect(() => {
     if (!authTeam) return;
@@ -98,15 +173,12 @@ export default function App() {
     } else {
       load();
     }
-  }, [authTeam]);
+  }, [authTeam, fetchAndEnrich, load]);
 
   // Show login screen if not authenticated
   if (!authTeam) {
     return <LoginScreen onLogin={handleLogin} />;
   }
-
-  const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
-  const isBackgroundRefresh = loadingPhase === 'refreshing';
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f1117', color: '#f3f4f6', fontFamily: 'Inter, sans-serif' }}>
@@ -198,8 +270,27 @@ export default function App() {
       {/* Tab Bar */}
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
+      {/* Section Filter */}
+      <SectionFilterBar
+        sections={sectionMeta}
+        selectedSections={selectedSections || DEFAULT_SECTIONS}
+        onToggle={(name) => {
+          setSelectedSections(prev => {
+            const current = prev || DEFAULT_SECTIONS;
+            return current.includes(name)
+              ? current.filter(s => s !== name)
+              : [...current, name];
+          });
+        }}
+        onReset={() => { setSelectedSections(null); setSelectedTeam('All'); }}
+        totalCount={teamFiltered.length}
+        teamOptions={teamOptions}
+        selectedTeam={selectedTeam}
+        onTeamChange={setSelectedTeam}
+      />
+
       {/* Main */}
-      <div style={{ maxWidth: activeTab === 'modules' || activeTab === 'issues' ? 'none' : 1400, margin: '0 auto', padding: '24px 28px' }}>
+      <div style={{ maxWidth: activeTab === 'modules' ? 'none' : 1400, margin: '0 auto', padding: '24px 28px' }}>
         {error && (
           <div style={{
             background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
@@ -229,43 +320,54 @@ export default function App() {
           <LoadingState phase={loadingPhase} />
         ) : activeTab === 'overview' ? (
           <>
-            {/* Summary — active restaurants only */}
+            {/* Summary */}
             <section style={{ marginBottom: 24 }}>
-              <SummaryBar restaurants={active} />
-              {excludedCount > 0 && (
-                <div style={{ fontSize: 11, color: '#4b5563', marginTop: 10 }}>
-                  {excludedCount} non-live restaurant{excludedCount !== 1 ? 's' : ''} hidden
-                </div>
-              )}
+              <SummaryBar restaurants={filtered} />
             </section>
 
-            {/* Top/Bottom — active only */}
-            <section style={{ marginBottom: 24 }}>
-              <TopBottom restaurants={active} />
-            </section>
-
-            {/* Live Restaurants Table */}
-            <section style={{ marginBottom: 36 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
-                Live Restaurants
-              </div>
-              <RestaurantTable restaurants={active} onRowClick={handleSelect} />
-            </section>
-
-            {/* Marketing Live */}
+            {/* Restaurant Table */}
             <section style={{ marginBottom: 32 }}>
-              <MarketingLiveSection restaurants={active} onRowClick={handleSelect} />
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                {sectionTitle}
+              </div>
+              <RestaurantTable restaurants={filtered} onRowClick={handleSelect} />
+            </section>
+
+            {/* Marketing Live Section (shown when Marketing Live is selected) */}
+            {(selectedSections || DEFAULT_SECTIONS).includes('Marketing Live') && (
+              <section style={{ marginBottom: 32 }}>
+                <MarketingLiveSection
+                  restaurants={filtered.filter(r => r.section === 'Marketing Live')}
+                  onRowClick={handleSelect}
+                />
+              </section>
+            )}
+
+            {/* Onboarding Section (shown when any onboarding section is selected) */}
+            {(selectedSections || DEFAULT_SECTIONS).some(s => s.toLowerCase().includes('onboarding')) && (
+              <section style={{ marginBottom: 32 }}>
+                <OnboardingSection
+                  restaurants={filtered.filter(r => (r.section || '').toLowerCase().includes('onboarding'))}
+                  onRowClick={handleSelect}
+                />
+              </section>
+            )}
+
+            {/* Top/Bottom */}
+            <section style={{ marginBottom: 32 }}>
+              <TopBottom restaurants={filtered} />
             </section>
           </>
         ) : activeTab === 'dashboard' ? (
-          <DashboardTab restaurants={active} allRestaurants={restaurants} />
+          <DashboardTab restaurants={filtered} />
+        ) : activeTab === 'analytics' ? (
+          <AnalyticsTab restaurants={filtered} allRestaurants={restaurants} />
         ) : activeTab === 'modules' ? (
-          <ModuleTab restaurants={active} />
+          <ModuleBreakdownTab restaurants={filtered} onRowClick={handleSelect} />
         ) : activeTab === 'issues' ? (
-          <IssuesTab restaurants={active} />
-        ) : (
-          <AnalyticsTab restaurants={active} />
-        )}
+          <IssuesPlaceholder />
+        ) : null
+        }
       </div>
 
       {/* Detail Drawer */}
@@ -279,6 +381,16 @@ export default function App() {
           50% { opacity: 0.3; }
         }
       `}</style>
+    </div>
+  );
+}
+
+function IssuesPlaceholder() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 12 }}>
+      <div style={{ fontSize: 32 }}>🔧</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#f3f4f6' }}>Issues Tab</div>
+      <div style={{ fontSize: 13, color: '#6b7280' }}>Coming soon — merge from claude/cool-austin</div>
     </div>
   );
 }

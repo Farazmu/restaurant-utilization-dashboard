@@ -1,6 +1,5 @@
 import { memo } from 'react';
 import BuddyBar from './charts/BuddyBar.jsx';
-import ModuleAdoption from './charts/ModuleAdoption.jsx';
 import HealthDonut from './charts/HealthDonut.jsx';
 import CategoryPerformance from './charts/CategoryPerformance.jsx';
 import LifecycleBreakdown from './charts/LifecycleBreakdown.jsx';
@@ -54,14 +53,6 @@ function DashboardTab({ restaurants, allRestaurants }) {
         {/* Row 3: AIO Buddy Performance + Module Adoption */}
         <ChartCard title="AIO Buddy Performance" subtitle="Average utilization per buddy, sorted by performance">
           <BuddyBar restaurants={restaurants} />
-        </ChartCard>
-
-        <ChartCard
-          title="Module Adoption Rate"
-          subtitle="Percentage of restaurants with each module live"
-          style={{ overflow: 'auto', maxHeight: 700 }}
-        >
-          <ModuleAdoption restaurants={restaurants} />
         </ChartCard>
       </div>
 

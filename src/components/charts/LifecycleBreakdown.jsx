@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { TOOLTIP_STYLE } from './chartUtils.js';
+import CustomTooltip from './CustomTooltip.jsx';
 
 const LIFECYCLE_COLORS = {
   Active:     '#10b981',
@@ -50,9 +50,12 @@ export default function LifecycleBreakdown({ restaurants }) {
               <Cell key={i} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip {...TOOLTIP_STYLE}
-            formatter={(value, name) => [`${value} (${((value / total) * 100).toFixed(1)}%)`, name]}
-          />
+          <Tooltip content={
+            <CustomTooltip formatter={(entry) => ({
+              title: entry.name,
+              primary: `${entry.value} restaurant${entry.value !== 1 ? 's' : ''} (${((entry.value / total) * 100).toFixed(1)}%)`,
+            })} />
+          } />
           <Legend
             verticalAlign="bottom"
             iconType="circle"

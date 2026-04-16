@@ -1,4 +1,4 @@
-import { MODULE_CONFIG, AIO_BUDDY_FIELD_GID } from '../config/modules.js';
+import { MODULE_CONFIG, AIO_BUDDY_FIELD_GID, TEAM_FIELD_GID } from '../config/modules.js';
 
 const PAT = '2/1212068356194686/1214056328538977:f08707e168001bf874eed7e6408393c4';
 const PROJECT_GID = '1214070935734743';
@@ -102,8 +102,9 @@ function normalizeTasks(tasks, sectionMap = {}) {
       moduleStatuses[mod.fieldGid] = fieldMap[mod.fieldGid] ?? null;
     }
 
-    // Extract AIO Buddy
+    // Extract AIO Buddy and Team
     const aioBuddy = fieldMap[AIO_BUDDY_FIELD_GID] ?? null;
+    const team = fieldMap[TEAM_FIELD_GID] ?? null;
 
     const section = sectionMap[task.gid] ?? null;
 
@@ -111,6 +112,7 @@ function normalizeTasks(tasks, sectionMap = {}) {
       id: task.gid,
       name: task.name,
       aioBuddy,
+      team,
       moduleStatuses,
       section,
     };

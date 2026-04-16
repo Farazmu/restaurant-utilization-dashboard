@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -7,6 +7,8 @@ import {
 } from 'recharts';
 import { HEALTH_COLORS } from './ProgressBar.jsx';
 import { CATEGORIES } from '../config/modules.js';
+import CustomTooltip, { barCursor, scatterCursor } from './charts/CustomTooltip.jsx';
+import ModuleAdoption from './charts/ModuleAdoption.jsx';
 
 const CAT_COLORS = {
   'Order & Pay':     '#6366f1',
@@ -15,12 +17,6 @@ const CAT_COLORS = {
   'Payroll':         '#10b981',
   'MoM':             '#f59e0b',
   'Tips + Office':   '#3b82f6',
-};
-
-const TOOLTIP_STYLE = {
-  contentStyle: { background: '#1a1d27', border: '1px solid #2d3148', borderRadius: 8, fontSize: 12, color: '#e5e7eb' },
-  labelStyle: { color: '#e5e7eb' },
-  itemStyle: { color: '#e5e7eb' },
 };
 
 function ChartCard({ children, title, subtitle, span = 1, style = {} }) {
@@ -45,10 +41,151 @@ function ChartCard({ children, title, subtitle, span = 1, style = {} }) {
 }
 
 export default function AnalyticsTab({ restaurants }) {
-  const data = useMemo(() => computeAll(restaurants), [restaurants]);
+  const [healthFilter, setHealthFilter] = useState([]);
+  const [buddyFilter, setBuddyFilter] = useState([]);
+  const [utilRange, setUtilRange] = useState('all'); // 'all' | '0-20' | '20-40' | '40-60' | '60-80' | '80-100'
+
+  const buddyOptions = useMemo(() => {
+    const set = new Set();
+    for (const r of restaurants) if (r.aioBuddy) set.add(r.aioBuddy);
+    return [...set].sort();
+  }, [restaurants]);
+
+  const filtered = useMemo(() => {
+    let list = restaurants;
+    if (healthFilter.length > 0) {
+      list = list.filter(r => healthFilter.includes(r.health));
+    }
+    if (buddyFilter.length > 0) {
+      list = list.filter(r => buddyFilter.includes(r.aioBuddy));
+    }
+    if (utilRange !== 'all') {
+      const [lo, hi] = utilRange.split('-').map(Number);
+      list = list.filter(r => {
+        if (r.overall === null) return false;
+        const pct = r.overall * 100;
+        return pct >= lo && pct < hi;
+      });
+    }
+    return list;
+  }, [restaurants, healthFilter, buddyFilter, utilRange]);
+
+  const toggleHealth = useCallback((h) => {
+    setHealthFilter(prev => prev.includes(h) ? prev.filter(x => x !== h) : [...prev, h]);
+  }, []);
+
+  const toggleBuddy = useCallback((b) => {
+    setBuddyFilter(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]);
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setHealthFilter([]);
+    setBuddyFilter([]);
+    setUtilRange('all');
+  }, []);
+
+  const hasFilters = healthFilter.length > 0 || buddyFilter.length > 0 || utilRange !== 'all';
+
+  const data = useMemo(() => computeAll(filtered), [filtered]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Slicer bar */}
+      <div style={{
+        background: '#1a1d27',
+        border: '1px solid #2d3148',
+        borderRadius: 12,
+        padding: '14px 20px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 16,
+      }}>
+        {/* Health pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4 }}>Health</span>
+          {['Healthy', 'Moderate', 'At Risk', 'Critical'].map(h => {
+            const active = healthFilter.includes(h);
+            const color = HEALTH_COLORS[h];
+            return (
+              <button key={h} onClick={() => toggleHealth(h)} style={{
+                background: active ? `${color}25` : 'transparent',
+                border: `1px solid ${active ? color : '#2d3148'}`,
+                borderRadius: 9999,
+                padding: '4px 12px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: active ? color : '#6b7280',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}>
+                {h}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 24, background: '#2d3148' }} />
+
+        {/* Utilization range */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4 }}>Utilization</span>
+          {[
+            { id: 'all', label: 'All' },
+            { id: '0-20', label: '0-20%' },
+            { id: '20-40', label: '20-40%' },
+            { id: '40-60', label: '40-60%' },
+            { id: '60-80', label: '60-80%' },
+            { id: '80-100', label: '80-100%' },
+          ].map(opt => {
+            const active = utilRange === opt.id;
+            return (
+              <button key={opt.id} onClick={() => setUtilRange(opt.id)} style={{
+                background: active ? 'rgba(99,102,241,0.15)' : 'transparent',
+                border: `1px solid ${active ? '#6366f1' : '#2d3148'}`,
+                borderRadius: 9999,
+                padding: '4px 10px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: active ? '#a5b4fc' : '#6b7280',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}>
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 24, background: '#2d3148' }} />
+
+        {/* AIO Buddy dropdown */}
+        <BuddyDropdown options={buddyOptions} selected={buddyFilter} onToggle={toggleBuddy} />
+
+        {/* Clear + count */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 12, color: '#6b7280' }}>
+            {filtered.length} of {restaurants.length} restaurants
+          </span>
+          {hasFilters && (
+            <button onClick={clearAll} style={{
+              background: 'rgba(99,102,241,0.1)',
+              border: '1px solid rgba(99,102,241,0.3)',
+              borderRadius: 8,
+              padding: '4px 12px',
+              color: '#a5b4fc',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}>
+              Clear all
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Row 1: Utilization Distribution (2fr) + Health Donut (1fr) */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
         <ChartCard title="Utilization Distribution" subtitle="How restaurants spread across utilization bands">
@@ -57,7 +194,17 @@ export default function AnalyticsTab({ restaurants }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
               <XAxis dataKey="range" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip {...TOOLTIP_STYLE} cursor={{ fill: 'rgba(99,102,241,0.08)' }} />
+              <Tooltip cursor={barCursor} content={
+                <CustomTooltip formatter={(entry, payload, label) => {
+                  const d = entry.payload;
+                  const totalInBins = data.distBins.reduce((s, b) => s + b.count, 0);
+                  const pct = totalInBins > 0 ? ((d.count / totalInBins) * 100).toFixed(1) : '0.0';
+                  return {
+                    title: d.range,
+                    primary: `${d.count} restaurant${d.count !== 1 ? 's' : ''} (${pct}%)`,
+                  };
+                }} />
+              } />
               <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={40}
                 label={{ position: 'top', fill: '#9ca3af', fontSize: 11 }}
               />
@@ -80,7 +227,15 @@ export default function AnalyticsTab({ restaurants }) {
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip {...TOOLTIP_STYLE} />
+                <Tooltip content={
+                  <CustomTooltip formatter={(entry) => {
+                    const total = filtered.length;
+                    return {
+                      title: entry.name,
+                      primary: `${entry.value} restaurant${entry.value !== 1 ? 's' : ''} (${((entry.value / total) * 100).toFixed(1)}%)`,
+                    };
+                  }} />
+                } />
               </PieChart>
             </ResponsiveContainer>
             {/* Center text */}
@@ -89,7 +244,7 @@ export default function AnalyticsTab({ restaurants }) {
               transform: 'translate(-50%, -50%)',
               textAlign: 'center', pointerEvents: 'none',
             }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#f9fafb' }}>{restaurants.length}</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#f9fafb' }}>{filtered.length}</div>
               <div style={{ fontSize: 10, color: '#6b7280', marginTop: -2 }}>Restaurants</div>
             </div>
           </div>
@@ -110,9 +265,16 @@ export default function AnalyticsTab({ restaurants }) {
               type="category" dataKey="name" width={110}
               tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false}
             />
-            <Tooltip {...TOOLTIP_STYLE} cursor={{ fill: 'rgba(99,102,241,0.08)' }}
-              formatter={v => [`${v.toFixed(1)}%`, 'Avg Gap']}
-            />
+            <Tooltip cursor={barCursor} content={
+              <CustomTooltip formatter={(entry) => {
+                const d = entry.payload;
+                return {
+                  title: d.name,
+                  primary: `${d.gap.toFixed(1)}% avg gap`,
+                  secondary: `${d.catCount} of ${d.totalRestaurants} restaurants scored`,
+                };
+              }} />
+            } />
             <Bar dataKey="gap" radius={[0, 4, 4, 0]} maxBarSize={22}>
               {data.catDrag.map((entry, i) => (
                 <Cell key={i} fill={entry.color} />
@@ -130,15 +292,18 @@ export default function AnalyticsTab({ restaurants }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
               <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} axisLine={false} tickLine={false} interval={0} angle={-20} textAnchor="end" height={50} />
               <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
-              <Tooltip {...TOOLTIP_STYLE} cursor={{ fill: 'rgba(99,102,241,0.08)' }}
-                formatter={(v, name) => {
-                  if (name === 'iqr') return [`Q1-Q3 range`, 'IQR'];
-                  if (name === 'median') return [`${v.toFixed(1)}%`, 'Median'];
-                  if (name === 'base') return [null, null];
-                  return [`${v.toFixed(1)}%`, name];
-                }}
-                itemSorter={() => 0}
-              />
+              <Tooltip cursor={barCursor} content={
+                <CustomTooltip formatter={(entry, allPayload, label) => {
+                  const d = allPayload[0]?.payload;
+                  if (!d) return null;
+                  return {
+                    title: d.name,
+                    primary: `Median: ${d.median.toFixed(1)}%`,
+                    secondary: `IQR: ${d.base.toFixed(1)}% \u2013 ${(d.base + d.iqr).toFixed(1)}% | ${d.count} restaurants`,
+                    extra: `Range: ${d.min.toFixed(1)}% \u2013 ${d.max.toFixed(1)}%`,
+                  };
+                }} />
+              } />
               {/* Invisible base bar to offset IQR */}
               <Bar dataKey="base" stackId="box" fill="transparent" maxBarSize={30} />
               {/* IQR bar */}
@@ -163,9 +328,15 @@ export default function AnalyticsTab({ restaurants }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
               <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} axisLine={false} tickLine={false} interval={0} angle={-30} textAnchor="end" height={60} />
               <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
-              <Tooltip {...TOOLTIP_STYLE} cursor={{ fill: 'rgba(99,102,241,0.08)' }}
-                formatter={(v, name) => [`${v.toFixed(1)}%`, name === 'avg' ? 'Avg Utilization' : name]}
-              />
+              <Tooltip cursor={barCursor} content={
+                <CustomTooltip formatter={(entry) => {
+                  const d = entry.payload;
+                  return {
+                    title: d.name,
+                    primary: `${d.avg.toFixed(1)}% \u2014 ${d.count} restaurant${d.count !== 1 ? 's' : ''}`,
+                  };
+                }} />
+              } />
               <Bar dataKey="avg" radius={[4, 4, 0, 0]} maxBarSize={35}>
                 {data.buddyBar.map((entry, i) => (
                   <Cell key={i} fill={entry.color} />
@@ -191,13 +362,16 @@ export default function AnalyticsTab({ restaurants }) {
               tickFormatter={v => `${v}%`}
             />
             <ZAxis range={[40, 40]} />
-            <Tooltip {...TOOLTIP_STYLE} cursor={{ strokeDasharray: '3 3' }}
-              formatter={(v, name) => {
-                if (name === 'Utilization %') return [`${v.toFixed(1)}%`, name];
-                return [v, name];
-              }}
-              labelFormatter={() => ''}
-            />
+            <Tooltip cursor={scatterCursor} content={
+              <CustomTooltip formatter={(entry) => {
+                const d = entry.payload;
+                return {
+                  title: d.name,
+                  primary: `Utilization: ${d.util.toFixed(1)}%`,
+                  secondary: `${d.liveCount} live module${d.liveCount !== 1 ? 's' : ''} | ${d.health}`,
+                };
+              }} />
+            } />
             <ReferenceLine y={data.avgUtil} stroke="#6366f1" strokeDasharray="5 5" strokeOpacity={0.6}
               label={{ value: `Avg ${data.avgUtil.toFixed(1)}%`, fill: '#6366f1', fontSize: 10, position: 'right' }}
             />
@@ -219,7 +393,19 @@ export default function AnalyticsTab({ restaurants }) {
               dataKey="size"
               nameKey="name"
               content={<TreemapContent />}
-            />
+            >
+              <Tooltip content={
+                <CustomTooltip formatter={(entry) => {
+                  const d = entry.payload;
+                  if (!d || !d.name) return null;
+                  return {
+                    title: d.name,
+                    primary: `${d.count} restaurant${d.count !== 1 ? 's' : ''}`,
+                    secondary: `Avg utilization: ${(d.avgUtil || 0).toFixed(1)}%`,
+                  };
+                }} />
+              } />
+            </Treemap>
           </ResponsiveContainer>
         </ChartCard>
 
@@ -230,13 +416,27 @@ export default function AnalyticsTab({ restaurants }) {
               <PolarAngleAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} />
               <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 9 }} axisLine={false} />
               <Radar dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} strokeWidth={2} />
-              <Tooltip {...TOOLTIP_STYLE} formatter={v => [`${v.toFixed(1)}%`, 'Avg Score']} />
+              <Tooltip content={
+                <CustomTooltip formatter={(entry) => {
+                  const d = entry.payload;
+                  return {
+                    title: d.name,
+                    primary: `${d.value.toFixed(1)}%`,
+                    secondary: `${d.count} restaurants scored`,
+                  };
+                }} />
+              } />
             </RadarChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>
 
-      {/* Row 6: Module Adoption Heatmap (full width) */}
+      {/* Row 6: Module Adoption Rate (full width) */}
+      <ChartCard title="Module Adoption Rate" subtitle="Percentage of restaurants with each module live" style={{ overflow: 'auto', maxHeight: 700 }}>
+        <ModuleAdoption restaurants={filtered} />
+      </ChartCard>
+
+      {/* Row 7: Module Adoption Heatmap (full width) */}
       <ChartCard title="Module Adoption Heatmap" subtitle="Percentage of restaurants with each module live">
         <div style={{ overflowX: 'auto' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -245,19 +445,82 @@ export default function AnalyticsTab({ restaurants }) {
               const bg = pct >= 70 ? '#10b98130' : pct >= 40 ? '#f59e0b30' : '#ef444430';
               const fg = pct >= 70 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#ef4444';
               return (
-                <div key={i} style={{
+                <div key={i} title={`${mod.name} — ${pct.toFixed(1)}% — ${mod.live} of ${mod.total} restaurants Live (${mod.category})`} style={{
                   background: bg, borderRadius: 6, padding: '8px 10px', minWidth: 100,
-                  border: `1px solid ${fg}30`,
+                  border: `1px solid ${fg}30`, cursor: 'default',
                 }}>
                   <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 2 }}>{mod.name}</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: fg }}>{pct.toFixed(0)}%</div>
-                  <div style={{ fontSize: 9, color: '#6b7280' }}>{mod.category}</div>
+                  <div style={{ fontSize: 9, color: '#6b7280' }}>{mod.live} of {mod.total} · {mod.category}</div>
                 </div>
               );
             })}
           </div>
         </div>
       </ChartCard>
+    </div>
+  );
+}
+
+/* ─── Buddy dropdown slicer ─── */
+function BuddyDropdown({ options, selected, onToggle }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Buddy</span>
+      <button onClick={() => setOpen(o => !o)} style={{
+        background: selected.length > 0 ? 'rgba(99,102,241,0.1)' : '#141822',
+        border: `1px solid ${selected.length > 0 ? '#6366f1' : '#2d3148'}`,
+        borderRadius: 8,
+        padding: '4px 12px',
+        fontSize: 11,
+        fontWeight: 600,
+        color: selected.length > 0 ? '#a5b4fc' : '#6b7280',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+      }}>
+        {selected.length > 0 ? `${selected.length} selected` : 'All'}
+        <span style={{ fontSize: 9 }}>{open ? '\u25B2' : '\u25BC'}</span>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 80 }} />
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            marginTop: 4,
+            background: '#1a1d27',
+            border: '1px solid #2d3148',
+            borderRadius: 8,
+            padding: 6,
+            zIndex: 81,
+            minWidth: 180,
+            maxHeight: 260,
+            overflowY: 'auto',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          }}>
+            {options.map(opt => {
+              const checked = selected.includes(opt);
+              return (
+                <label key={opt} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '5px 8px', borderRadius: 6, cursor: 'pointer',
+                  fontSize: 12, color: '#e5e7eb',
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#1f2433'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <input type="checkbox" checked={checked} onChange={() => onToggle(opt)} style={{ accentColor: '#6366f1' }} />
+                  {opt}
+                </label>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -322,6 +585,8 @@ function computeAll(restaurants) {
       name: cat,
       gap: catCounts[cat] > 0 ? (1 - catSums[cat] / catCounts[cat]) * 100 : 0,
       color: CAT_COLORS[cat],
+      catCount: catCounts[cat],
+      totalRestaurants: restaurants.length,
     }))
     .sort((a, b) => b.gap - a.gap);
 
@@ -334,11 +599,11 @@ function computeAll(restaurants) {
     }
     scores.sort((a, b) => a - b);
     const n = scores.length;
-    if (n === 0) return { name: cat, base: 0, iqr: 0, median: 0, min: 0, max: 0, color: CAT_COLORS[cat] };
+    if (n === 0) return { name: cat, base: 0, iqr: 0, median: 0, min: 0, max: 0, color: CAT_COLORS[cat], count: 0 };
     const q1 = scores[Math.floor(n * 0.25)];
     const median = scores[Math.floor(n * 0.5)];
     const q3 = scores[Math.floor(n * 0.75)];
-    return { name: cat, base: q1, iqr: q3 - q1, median, min: scores[0], max: scores[n - 1], color: CAT_COLORS[cat] };
+    return { name: cat, base: q1, iqr: q3 - q1, median, min: scores[0], max: scores[n - 1], color: CAT_COLORS[cat], count: n };
   });
 
   // AIO Buddy bar
@@ -394,6 +659,7 @@ function computeAll(restaurants) {
   const radarData = CATEGORIES.map(cat => ({
     name: cat,
     value: catCounts[cat] > 0 ? (catSums[cat] / catCounts[cat]) * 100 : 0,
+    count: catCounts[cat] || 0,
   }));
 
   // Heatmap
@@ -406,7 +672,7 @@ function computeAll(restaurants) {
     }
   }
   const heatmapData = Object.entries(moduleMap)
-    .map(([name, v]) => ({ name, adoptionPct: (v.live / v.total) * 100, category: v.category }))
+    .map(([name, v]) => ({ name, adoptionPct: (v.live / v.total) * 100, category: v.category, live: v.live, total: v.total }))
     .sort((a, b) => b.adoptionPct - a.adoptionPct);
 
   return { distBins, healthPie, catDrag, boxPlot, buddyBar, scatter, avgUtil, treemapData, radarData, heatmapData };
