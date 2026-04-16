@@ -193,13 +193,6 @@ function ModuleBreakdownTab({ restaurants }) {
 
         {/* ── RESTAURANT ROWS ── */}
         <tbody>
-          <tr>
-            <td style={{ ...cellBase, ...labelCell, background: '#0d0f16' }}>Restaurants</td>
-            {MODULE_CONFIG.map(mod => (
-              <td key={mod.fieldGid} style={{ ...cellBase, background: '#0d0f16' }} />
-            ))}
-          </tr>
-
           {Array.from({ length: maxAdopters }, (_, i) => (
             <tr key={i}>
               <td style={{ ...cellBase, ...labelCell, background: i % 2 === 0 ? '#0f1117' : '#0d0f16' }} />
