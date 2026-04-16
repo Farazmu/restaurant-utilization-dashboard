@@ -12,7 +12,7 @@ export function parseStatus(status) {
     case 'Onboarding':
       return { score: 0, included: true };
     case 'On Hold':
-      return { score: 0, included: false };
+      return { score: 0, included: true };
     case 'SW/Product Issue':
       return { score: 0, included: true };
     case 'Churned':
