@@ -137,6 +137,9 @@ function RestaurantTable({ restaurants, onRowClick }) {
               <th style={thStyle('buddy')} onClick={() => handleSort('buddy')}>
                 AIO Buddy <SortIcon col="buddy" />
               </th>
+              <th style={{ ...thStyle('team'), textAlign: 'left' }}>
+                Team
+              </th>
               <th style={{ ...thStyle('overall'), minWidth: 130 }} onClick={() => handleSort('overall')}>
                 Utilization <SortIcon col="overall" />
               </th>
@@ -156,7 +159,7 @@ function RestaurantTable({ restaurants, onRowClick }) {
             ))}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={4 + CATEGORIES.length} style={{ textAlign: 'center', padding: '40px', color: '#6b7280', fontSize: 13 }}>
+                <td colSpan={5 + CATEGORIES.length} style={{ textAlign: 'center', padding: '40px', color: '#6b7280', fontSize: 13 }}>
                   No restaurants match your filters
                 </td>
               </tr>
@@ -203,6 +206,9 @@ function TableRow({ restaurant: r, idx, onClick }) {
       </td>
       <td style={{ ...tdBase, color: '#9ca3af', whiteSpace: 'nowrap', fontSize: 12 }}>
         {r.aioBuddy || <span style={{ color: '#374151' }}>---</span>}
+      </td>
+      <td style={{ ...tdBase, color: '#9ca3af', whiteSpace: 'nowrap', fontSize: 12 }}>
+        {r.team || <span style={{ color: '#374151' }}>---</span>}
       </td>
       <td style={{ ...tdBase, minWidth: 130 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
