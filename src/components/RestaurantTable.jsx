@@ -74,6 +74,10 @@ function RestaurantTable({ restaurants, onRowClick }) {
         av = (a.section || '').toLowerCase();
         bv = (b.section || '').toLowerCase();
         return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      } else if (sortCol === 'team') {
+        av = (a.team || '').toLowerCase();
+        bv = (b.team || '').toLowerCase();
+        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       } else {
         av = a.categoryScores[sortCol] ?? -1;
         bv = b.categoryScores[sortCol] ?? -1;
@@ -93,7 +97,7 @@ function RestaurantTable({ restaurants, onRowClick }) {
 
   const thStyle = (col) => ({
     padding: '10px 14px',
-    textAlign: col === 'name' || col === 'buddy' || col === 'section' ? 'left' : 'right',
+    textAlign: col === 'name' || col === 'buddy' || col === 'section' || col === 'team' ? 'left' : 'right',
     fontSize: 10,
     fontWeight: 700,
     color: sortCol === col ? '#a5b4fc' : '#6b7280',
@@ -162,8 +166,8 @@ function RestaurantTable({ restaurants, onRowClick }) {
               <th style={thStyle('buddy')} onClick={() => handleSort('buddy')}>
                 AIO Buddy <SortIcon col="buddy" />
               </th>
-              <th style={{ ...thStyle('team'), textAlign: 'left' }}>
-                Team
+              <th style={{ ...thStyle('team'), textAlign: 'left' }} onClick={() => handleSort('team')}>
+                Team <SortIcon col="team" />
               </th>
               <th style={{ ...thStyle('overall'), minWidth: 130 }} onClick={() => handleSort('overall')}>
                 Utilization <SortIcon col="overall" />
@@ -184,7 +188,7 @@ function RestaurantTable({ restaurants, onRowClick }) {
             ))}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={5 + CATEGORIES.length} style={{ textAlign: 'center', padding: '40px', color: '#6b7280', fontSize: 13 }}>
+                <td colSpan={6 + CATEGORIES.length} style={{ textAlign: 'center', padding: '40px', color: '#6b7280', fontSize: 13 }}>
                   No restaurants match your filters
                 </td>
               </tr>
