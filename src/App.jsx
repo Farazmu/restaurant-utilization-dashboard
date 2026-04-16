@@ -45,11 +45,6 @@ export default function App() {
     setAuthTeam(null);
   }, []);
 
-  // Show login screen if not authenticated
-  if (!authTeam) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
   const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
   const isBackgroundRefresh = loadingPhase === 'refreshing';
 
@@ -70,7 +65,7 @@ export default function App() {
   const handleSelect = useCallback((r) => setSelected(r), []);
   const handleClose = useCallback(() => setSelected(null), []);
 
-  async function fetchAndEnrich() {
+  const fetchAndEnrich = useCallback(async () => {
     setLoadingPhase(prev => prev === 'refreshing' ? 'refreshing' : 'loading');
     setError(null);
     try {
@@ -86,14 +81,15 @@ export default function App() {
     } finally {
       setLoadingPhase(null);
     }
-  }
+  }, []);
 
-  function load() {
+  const load = useCallback(() => {
     setLoadingPhase('loading');
     fetchAndEnrich();
-  }
+  }, [fetchAndEnrich]);
 
   useEffect(() => {
+    if (!authTeam) return;
     const cached = getCachedData();
     if (cached) {
       setRestaurants(cached.data);
@@ -104,7 +100,12 @@ export default function App() {
     } else {
       load();
     }
-  }, []);
+  }, [authTeam, fetchAndEnrich, load]);
+
+  // Show login screen if not authenticated
+  if (!authTeam) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f1117', color: '#f3f4f6', fontFamily: 'Inter, sans-serif' }}>
