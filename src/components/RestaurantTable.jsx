@@ -4,6 +4,15 @@ import { CATEGORIES } from '../config/modules.js';
 
 const HEALTH_OPTIONS = ['All', 'Healthy', 'Moderate', 'At Risk', 'Critical'];
 
+const SECTION_COLORS = {
+  'Live Restaurants':      '#10b981',
+  'Marketing Live':        '#8b5cf6',
+  'Onboarding':            '#3b82f6',
+  'Marketing Onboarding':  '#6366f1',
+  'On Hold Restaurants':   '#f59e0b',
+  'Churned Restaurants':   '#ef4444',
+};
+
 const CAT_ABBREV = {
   'Order & Pay':     'Order & Pay',
   'Marketing (On)':  'Mktg On',
@@ -25,14 +34,22 @@ function RestaurantTable({ restaurants, onRowClick }) {
     return ['All', ...names];
   }, [restaurants]);
 
+  const sectionOptions = useMemo(() => {
+    const names = [...new Set(restaurants.map(r => r.section).filter(Boolean))].sort();
+    return ['All', ...names];
+  }, [restaurants]);
+
+  const [sectionFilter, setSectionFilter] = useState('All');
+
   const filtered = useMemo(() => {
     return restaurants.filter(r => {
       if (healthFilter !== 'All' && r.health !== healthFilter) return false;
       if (buddyFilter !== 'All' && r.aioBuddy !== buddyFilter) return false;
+      if (sectionFilter !== 'All' && r.section !== sectionFilter) return false;
       if (search && !r.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [restaurants, healthFilter, buddyFilter, search]);
+  }, [restaurants, healthFilter, buddyFilter, sectionFilter, search]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -53,6 +70,10 @@ function RestaurantTable({ restaurants, onRowClick }) {
         av = (a.aioBuddy || '').toLowerCase();
         bv = (b.aioBuddy || '').toLowerCase();
         return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      } else if (sortCol === 'section') {
+        av = (a.section || '').toLowerCase();
+        bv = (b.section || '').toLowerCase();
+        return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       } else {
         av = a.categoryScores[sortCol] ?? -1;
         bv = b.categoryScores[sortCol] ?? -1;
@@ -72,7 +93,7 @@ function RestaurantTable({ restaurants, onRowClick }) {
 
   const thStyle = (col) => ({
     padding: '10px 14px',
-    textAlign: col === 'name' || col === 'buddy' ? 'left' : 'right',
+    textAlign: col === 'name' || col === 'buddy' || col === 'section' ? 'left' : 'right',
     fontSize: 10,
     fontWeight: 700,
     color: sortCol === col ? '#a5b4fc' : '#6b7280',
@@ -121,6 +142,7 @@ function RestaurantTable({ restaurants, onRowClick }) {
         </div>
         <Select value={healthFilter} onChange={setHealthFilter} options={HEALTH_OPTIONS} label="Health" />
         <Select value={buddyFilter} onChange={setBuddyFilter} options={buddyOptions} label="AIO Buddy" />
+        <Select value={sectionFilter} onChange={setSectionFilter} options={sectionOptions} label="Section" />
         <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4, fontVariantNumeric: 'tabular-nums' }}>
           {sorted.length} of {restaurants.length} restaurants
         </span>
@@ -133,6 +155,9 @@ function RestaurantTable({ restaurants, onRowClick }) {
             <tr>
               <th style={thStyle('name')} onClick={() => handleSort('name')}>
                 Restaurant <SortIcon col="name" />
+              </th>
+              <th style={thStyle('section')} onClick={() => handleSort('section')}>
+                Section <SortIcon col="section" />
               </th>
               <th style={thStyle('buddy')} onClick={() => handleSort('buddy')}>
                 AIO Buddy <SortIcon col="buddy" />
@@ -204,6 +229,9 @@ function TableRow({ restaurant: r, idx, onClick }) {
       <td style={{ ...tdBase, fontWeight: 500, color: '#f3f4f6', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {r.name}
       </td>
+      <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
+        <SectionPill section={r.section} />
+      </td>
       <td style={{ ...tdBase, color: '#9ca3af', whiteSpace: 'nowrap', fontSize: 12 }}>
         {r.aioBuddy || <span style={{ color: '#374151' }}>---</span>}
       </td>
@@ -261,6 +289,42 @@ function HealthPill({ health }) {
         boxShadow: `0 0 6px ${color}60`,
       }} />
       {health}
+    </span>
+  );
+}
+
+function SectionPill({ section }) {
+  if (!section) return <span style={{ color: '#374151', fontSize: 11 }}>---</span>;
+  const color = SECTION_COLORS[section] || '#6b7280';
+  // Short label for compact display
+  const SHORT = {
+    'Live Restaurants':      'Live',
+    'Marketing Live':        'Mkt Live',
+    'Onboarding':            'Onboarding',
+    'Marketing Onboarding':  'Mkt Onb',
+    'On Hold Restaurants':   'On Hold',
+    'Churned Restaurants':   'Churned',
+  };
+  const label = SHORT[section] || section;
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      padding: '2px 8px',
+      borderRadius: 9999,
+      fontSize: 10,
+      fontWeight: 600,
+      background: `${color}18`,
+      color,
+      border: `1px solid ${color}30`,
+      letterSpacing: '0.02em',
+    }}>
+      <span style={{
+        width: 5, height: 5, borderRadius: '50%',
+        background: color, flexShrink: 0,
+      }} />
+      {label}
     </span>
   );
 }

@@ -12,6 +12,15 @@ import TopBottom from './components/TopBottom.jsx';
 import TabNav from './components/TabNav.jsx';
 import DashboardTab from './components/AnalyticsTab.jsx';
 import ModuleBreakdownTab from './components/ModuleBreakdownTab.jsx';
+import SectionFilterBar from './components/SectionFilterBar.jsx';
+import MarketingLiveSection from './components/MarketingLiveSection.jsx';
+import OnboardingSection from './components/OnboardingSection.jsx';
+
+const SECTION_ORDER = [
+  'Live Restaurants', 'Marketing Live', 'Onboarding',
+  'Marketing Onboarding', 'On Hold Restaurants', 'Churned Restaurants',
+];
+const DEFAULT_SECTIONS = ['Live Restaurants'];
 
 export default function App() {
   const [authTeam, setAuthTeam] = useState(() => {
@@ -29,11 +38,26 @@ export default function App() {
       return saved === 'overview' || saved === 'dashboard' || saved === 'modules' ? saved : 'overview';
     } catch { return 'overview'; }
   });
+  const [selectedSections, setSelectedSections] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aio-selected-sections');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
 
   // Persist active tab to localStorage
   useEffect(() => {
     try { localStorage.setItem('aio-active-tab', activeTab); } catch {}
   }, [activeTab]);
+
+  // Persist selected sections to localStorage
+  useEffect(() => {
+    try {
+      if (selectedSections) {
+        localStorage.setItem('aio-selected-sections', JSON.stringify(selectedSections));
+      }
+    } catch {}
+  }, [selectedSections]);
 
   const handleLogin = useCallback((team) => {
     setSession(team);
@@ -48,19 +72,42 @@ export default function App() {
   const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
   const isBackgroundRefresh = loadingPhase === 'refreshing';
 
-  // Split restaurants by lifecycle (section-based)
-  const { active, excludedCount } = useMemo(() => {
-    const active = [];
+  // Derive available sections from data
+  const sectionMeta = useMemo(() => {
+    const countMap = {};
+    for (const r of restaurants) {
+      const s = r.section || '(No Section)';
+      countMap[s] = (countMap[s] || 0) + 1;
+    }
+    const known = SECTION_ORDER.filter(s => countMap[s]);
+    const unknown = Object.keys(countMap).filter(s => !SECTION_ORDER.includes(s)).sort();
+    return [...known, ...unknown].map(name => ({ name, count: countMap[name] }));
+  }, [restaurants]);
+
+  // Filter restaurants by selected sections
+  const { filtered, excludedCount } = useMemo(() => {
+    const activeSections = selectedSections || DEFAULT_SECTIONS;
+    const filtered = [];
     let excludedCount = 0;
     for (const r of restaurants) {
-      if (r.lifecycle === 'Active') {
-        active.push(r);
+      if (activeSections.includes(r.section)) {
+        filtered.push(r);
       } else {
         excludedCount++;
       }
     }
-    return { active, excludedCount };
-  }, [restaurants]);
+    return { filtered, excludedCount };
+  }, [restaurants, selectedSections]);
+
+  // Dynamic section title for the overview tab
+  const sectionTitle = useMemo(() => {
+    const active = selectedSections || DEFAULT_SECTIONS;
+    if (active.length === 0) return 'No Sections Selected';
+    if (active.length === 1) return active[0];
+    if (active.length === sectionMeta.length) return 'All Restaurants';
+    if (active.length <= 3) return active.join(' + ');
+    return `${active.length} Sections`;
+  }, [selectedSections, sectionMeta]);
 
   const handleSelect = useCallback((r) => setSelected(r), []);
   const handleClose = useCallback(() => setSelected(null), []);
@@ -197,6 +244,22 @@ export default function App() {
       {/* Tab Bar */}
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
+      {/* Section Filter */}
+      <SectionFilterBar
+        sections={sectionMeta}
+        selectedSections={selectedSections || DEFAULT_SECTIONS}
+        onToggle={(name) => {
+          setSelectedSections(prev => {
+            const current = prev || DEFAULT_SECTIONS;
+            return current.includes(name)
+              ? current.filter(s => s !== name)
+              : [...current, name];
+          });
+        }}
+        onReset={() => setSelectedSections(null)}
+        totalCount={restaurants.length}
+      />
+
       {/* Main */}
       <div style={{ maxWidth: activeTab === 'modules' ? 'none' : 1400, margin: '0 auto', padding: '24px 28px' }}>
         {error && (
@@ -228,33 +291,48 @@ export default function App() {
           <LoadingState phase={loadingPhase} />
         ) : activeTab === 'overview' ? (
           <>
-            {/* Summary — active restaurants only */}
+            {/* Summary */}
             <section style={{ marginBottom: 24 }}>
-              <SummaryBar restaurants={active} />
-              {excludedCount > 0 && (
-                <div style={{ fontSize: 11, color: '#4b5563', marginTop: 10 }}>
-                  {excludedCount} non-live restaurant{excludedCount !== 1 ? 's' : ''} hidden
-                </div>
-              )}
+              <SummaryBar restaurants={filtered} />
             </section>
 
-            {/* Live Restaurants Table */}
+            {/* Restaurant Table */}
             <section style={{ marginBottom: 32 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
-                Live Restaurants
+                {sectionTitle}
               </div>
-              <RestaurantTable restaurants={active} onRowClick={handleSelect} />
+              <RestaurantTable restaurants={filtered} onRowClick={handleSelect} />
             </section>
 
-            {/* Top/Bottom — active only */}
+            {/* Marketing Live Section (shown when Marketing Live is selected) */}
+            {(selectedSections || DEFAULT_SECTIONS).includes('Marketing Live') && (
+              <section style={{ marginBottom: 32 }}>
+                <MarketingLiveSection
+                  restaurants={filtered.filter(r => r.section === 'Marketing Live')}
+                  onRowClick={handleSelect}
+                />
+              </section>
+            )}
+
+            {/* Onboarding Section (shown when any onboarding section is selected) */}
+            {(selectedSections || DEFAULT_SECTIONS).some(s => s.toLowerCase().includes('onboarding')) && (
+              <section style={{ marginBottom: 32 }}>
+                <OnboardingSection
+                  restaurants={filtered.filter(r => (r.section || '').toLowerCase().includes('onboarding'))}
+                  onRowClick={handleSelect}
+                />
+              </section>
+            )}
+
+            {/* Top/Bottom */}
             <section style={{ marginBottom: 32 }}>
-              <TopBottom restaurants={active} />
+              <TopBottom restaurants={filtered} />
             </section>
           </>
         ) : activeTab === 'dashboard' ? (
-          <DashboardTab restaurants={active} />
+          <DashboardTab restaurants={filtered} />
         ) : (
-          <ModuleBreakdownTab restaurants={active} onRowClick={handleSelect} />
+          <ModuleBreakdownTab restaurants={filtered} onRowClick={handleSelect} />
         )}
       </div>
 
