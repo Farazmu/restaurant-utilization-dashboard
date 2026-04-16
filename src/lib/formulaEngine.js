@@ -16,7 +16,7 @@ export function parseStatus(status) {
     case 'SW/Product Issue':
       return { score: 0, included: true };
     case 'Churned':
-      return { score: 0, included: false };
+      return { score: 0, included: true };
     case 'Not Required':
       return { score: 0, included: false };
     case 'Not Applicable':

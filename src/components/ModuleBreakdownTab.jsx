@@ -251,6 +251,29 @@ function ModuleBreakdownTab({ restaurants, onRowClick }) {
     return map;
   }, [sorted]);
 
+  /* Per-module status counts (computed from filtered/sorted restaurants) */
+  const moduleCounts = useMemo(() => {
+    const counts = {};
+    for (const mod of MODULES_ORDERED) {
+      counts[mod.fieldGid] = { live: 0, onboarding: 0, onHold: 0, swIssue: 0, churned: 0, notRequired: 0, empty: 0, total: 0 };
+    }
+    for (const r of sorted) {
+      for (const md of r.moduleDetails) {
+        const c = counts[md.fieldGid];
+        if (!c) continue;
+        const s = md.status?.trim() || '';
+        if (s === 'Live') { c.live++; c.total++; }
+        else if (s === 'Onboarding') { c.onboarding++; c.total++; }
+        else if (s === 'On Hold') { c.onHold++; c.total++; }
+        else if (s === 'SW/Product Issue') { c.swIssue++; c.total++; }
+        else if (s === 'Churned') { c.churned++; c.total++; }
+        else if (s === 'Not Required' || s === 'Not Applicable') { c.notRequired++; }
+        else { c.empty++; }
+      }
+    }
+    return counts;
+  }, [sorted]);
+
   const sortArrow = (key) => {
     if (sortKey !== key) return '';
     return sortDir === 'asc' ? ' \u25B2' : ' \u25BC';
@@ -453,6 +476,77 @@ function ModuleBreakdownTab({ restaurants, onRowClick }) {
             </tr>
           </thead>
           <tbody>
+            {/* Module count summary row */}
+            <tr style={{ background: '#141822' }}>
+              <td style={{
+                ...stickyColStyle,
+                zIndex: 2,
+                padding: '8px 10px',
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#6366f1',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                borderBottom: '2px solid #2d3148',
+                borderRight: '1px solid #2d3148',
+                background: '#141822',
+                whiteSpace: 'nowrap',
+              }}>
+                Module Count
+              </td>
+              <td colSpan={3} style={{
+                padding: '8px 8px',
+                fontSize: 10,
+                color: '#6b7280',
+                borderBottom: '2px solid #2d3148',
+                borderRight: '2px solid #2d3148',
+              }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: 2, background: '#10b981', display: 'inline-block' }} /> Live</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: 2, background: '#3b82f6', display: 'inline-block' }} /> Onb</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: 2, background: '#f97316', display: 'inline-block' }} /> Hold</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: 2, background: '#ef4444', display: 'inline-block' }} /> SW</span>
+                </div>
+              </td>
+              {MODULES_ORDERED.map((mod, idx) => {
+                const prevCat = idx > 0 ? MODULES_ORDERED[idx - 1].category : null;
+                const isBoundary = prevCat && prevCat !== mod.category;
+                const c = moduleCounts[mod.fieldGid] || { live: 0, total: 0, onboarding: 0, onHold: 0, swIssue: 0 };
+                const adoptionPct = c.total > 0 ? (c.live / c.total * 100) : 0;
+                const adoptionColor = adoptionPct >= 70 ? '#10b981' : adoptionPct >= 40 ? '#f59e0b' : adoptionPct > 0 ? '#f97316' : '#374151';
+                return (
+                  <td
+                    key={mod.fieldGid}
+                    title={`${mod.name}: ${c.live} Live, ${c.onboarding} Onboarding, ${c.onHold} On Hold, ${c.swIssue} SW/Product Issue, ${c.notRequired} NR — ${c.total} applicable of ${sorted.length}`}
+                    style={{
+                      padding: '4px 2px',
+                      textAlign: 'center',
+                      borderBottom: '2px solid #2d3148',
+                      borderLeft: isBoundary ? '2px solid #2d3148' : 'none',
+                      background: '#141822',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                      <span style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: adoptionColor,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}>
+                        {c.live}
+                      </span>
+                      <span style={{
+                        fontSize: 9,
+                        color: '#4b5563',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}>
+                        /{c.total}
+                      </span>
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
             {sorted.map((r, rowIdx) => {
               const hColor = HEALTH_COLORS[r.health] || '#6b7280';
               const pct = r.overall !== null ? (r.overall * 100).toFixed(1) : null;
