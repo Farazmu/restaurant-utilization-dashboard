@@ -11,6 +11,7 @@ import DetailDrawer from './components/DetailDrawer.jsx';
 import TopBottom from './components/TopBottom.jsx';
 import TabNav from './components/TabNav.jsx';
 import DashboardTab from './components/AnalyticsTab.jsx';
+import AnalyticsTab from './components/DashboardTab.jsx';
 import ModuleBreakdownTab from './components/ModuleBreakdownTab.jsx';
 import SectionFilterBar from './components/SectionFilterBar.jsx';
 import MarketingLiveSection from './components/MarketingLiveSection.jsx';
@@ -35,7 +36,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     try {
       const saved = localStorage.getItem('aio-active-tab');
-      return saved === 'overview' || saved === 'dashboard' || saved === 'modules' ? saved : 'overview';
+      return ['overview', 'dashboard', 'analytics', 'modules', 'issues'].includes(saved) ? saved : 'overview';
     } catch { return 'overview'; }
   });
   const [selectedSections, setSelectedSections] = useState(() => {
@@ -359,9 +360,14 @@ export default function App() {
           </>
         ) : activeTab === 'dashboard' ? (
           <DashboardTab restaurants={filtered} />
-        ) : (
+        ) : activeTab === 'analytics' ? (
+          <AnalyticsTab restaurants={filtered} allRestaurants={restaurants} />
+        ) : activeTab === 'modules' ? (
           <ModuleBreakdownTab restaurants={filtered} onRowClick={handleSelect} />
-        )}
+        ) : activeTab === 'issues' ? (
+          <IssuesPlaceholder />
+        ) : null
+        }
       </div>
 
       {/* Detail Drawer */}
@@ -375,6 +381,16 @@ export default function App() {
           50% { opacity: 0.3; }
         }
       `}</style>
+    </div>
+  );
+}
+
+function IssuesPlaceholder() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 12 }}>
+      <div style={{ fontSize: 32 }}>🔧</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#f3f4f6' }}>Issues Tab</div>
+      <div style={{ fontSize: 13, color: '#6b7280' }}>Coming soon — merge from claude/cool-austin</div>
     </div>
   );
 }
