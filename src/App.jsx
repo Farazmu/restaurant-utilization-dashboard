@@ -238,17 +238,17 @@ export default function App() {
               )}
             </section>
 
-            {/* Top/Bottom — active only */}
-            <section style={{ marginBottom: 24 }}>
-              <TopBottom restaurants={active} />
-            </section>
-
             {/* Live Restaurants Table */}
             <section style={{ marginBottom: 32 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
                 Live Restaurants
               </div>
               <RestaurantTable restaurants={active} onRowClick={handleSelect} />
+            </section>
+
+            {/* Top/Bottom — active only */}
+            <section style={{ marginBottom: 32 }}>
+              <TopBottom restaurants={active} />
             </section>
           </>
         ) : activeTab === 'dashboard' ? (
