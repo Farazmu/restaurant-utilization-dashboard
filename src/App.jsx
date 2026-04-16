@@ -44,6 +44,11 @@ export default function App() {
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
+  const [selectedTeam, setSelectedTeam] = useState(() => {
+    try {
+      return localStorage.getItem('aio-selected-team') || 'All';
+    } catch { return 'All'; }
+  });
 
   // Persist active tab to localStorage
   useEffect(() => {
@@ -59,6 +64,11 @@ export default function App() {
     } catch {}
   }, [selectedSections]);
 
+  // Persist selected team to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('aio-selected-team', selectedTeam); } catch {}
+  }, [selectedTeam]);
+
   const handleLogin = useCallback((team) => {
     setSession(team);
     setAuthTeam(team);
@@ -72,24 +82,39 @@ export default function App() {
   const loading = loadingPhase === 'loading' || loadingPhase === 'processing';
   const isBackgroundRefresh = loadingPhase === 'refreshing';
 
-  // Derive available sections from data
+  // Step 1: Derive team options from ALL restaurants
+  const teamOptions = useMemo(() => {
+    const teams = new Set();
+    for (const r of restaurants) {
+      if (r.team) teams.add(r.team);
+    }
+    return ['All', ...[...teams].sort()];
+  }, [restaurants]);
+
+  // Step 2: Apply team filter first
+  const teamFiltered = useMemo(() => {
+    if (selectedTeam === 'All') return restaurants;
+    return restaurants.filter(r => r.team === selectedTeam);
+  }, [restaurants, selectedTeam]);
+
+  // Step 3: Derive section counts from team-filtered data
   const sectionMeta = useMemo(() => {
     const countMap = {};
-    for (const r of restaurants) {
+    for (const r of teamFiltered) {
       const s = r.section || '(No Section)';
       countMap[s] = (countMap[s] || 0) + 1;
     }
     const known = SECTION_ORDER.filter(s => countMap[s]);
     const unknown = Object.keys(countMap).filter(s => !SECTION_ORDER.includes(s)).sort();
     return [...known, ...unknown].map(name => ({ name, count: countMap[name] }));
-  }, [restaurants]);
+  }, [teamFiltered]);
 
-  // Filter restaurants by selected sections
+  // Step 4: Apply section filter on team-filtered data
   const { filtered, excludedCount } = useMemo(() => {
     const activeSections = selectedSections || DEFAULT_SECTIONS;
     const filtered = [];
     let excludedCount = 0;
-    for (const r of restaurants) {
+    for (const r of teamFiltered) {
       if (activeSections.includes(r.section)) {
         filtered.push(r);
       } else {
@@ -97,7 +122,7 @@ export default function App() {
       }
     }
     return { filtered, excludedCount };
-  }, [restaurants, selectedSections]);
+  }, [teamFiltered, selectedSections]);
 
   // Dynamic section title for the overview tab
   const sectionTitle = useMemo(() => {
@@ -256,8 +281,11 @@ export default function App() {
               : [...current, name];
           });
         }}
-        onReset={() => setSelectedSections(null)}
-        totalCount={restaurants.length}
+        onReset={() => { setSelectedSections(null); setSelectedTeam('All'); }}
+        totalCount={teamFiltered.length}
+        teamOptions={teamOptions}
+        selectedTeam={selectedTeam}
+        onTeamChange={setSelectedTeam}
       />
 
       {/* Main */}

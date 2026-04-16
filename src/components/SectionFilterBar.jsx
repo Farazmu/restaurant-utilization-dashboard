@@ -16,7 +16,7 @@ function getColor(name) {
   return SECTION_COLORS[name] || DEFAULT_COLOR;
 }
 
-function SectionFilterBar({ sections, selectedSections, onToggle, onReset, totalCount }) {
+function SectionFilterBar({ sections, selectedSections, onToggle, onReset, totalCount, teamOptions, selectedTeam, onTeamChange }) {
   const selectedCount = sections
     .filter(s => selectedSections.includes(s.name))
     .reduce((sum, s) => sum + s.count, 0);
@@ -32,8 +32,32 @@ function SectionFilterBar({ sections, selectedSections, onToggle, onReset, total
       flexWrap: 'wrap',
       gap: 10,
     }}>
-      {/* Section Chips */}
+      {/* Section Chips + Team Filter */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        {/* Team Dropdown */}
+        <select
+          value={selectedTeam}
+          onChange={e => onTeamChange(e.target.value)}
+          style={{
+            background: selectedTeam === 'All' ? '#1a1d27' : 'rgba(99,102,241,0.12)',
+            border: `1px solid ${selectedTeam === 'All' ? '#2d3148' : '#6366f1'}`,
+            borderRadius: 9999,
+            padding: '5px 12px',
+            color: selectedTeam === 'All' ? '#6b7280' : '#a5b4fc',
+            fontSize: 12,
+            fontWeight: 600,
+            outline: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            letterSpacing: '0.02em',
+          }}
+        >
+          {(teamOptions || ['All']).map(t => (
+            <option key={t} value={t}>{t === 'All' ? 'All Teams' : t}</option>
+          ))}
+        </select>
+
+        <span style={{ width: 1, height: 20, background: '#2d3148', flexShrink: 0 }} />
         {sections.map(({ name, count }) => {
           const color = getColor(name);
           const isActive = selectedSections.includes(name);
