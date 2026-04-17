@@ -15,10 +15,21 @@ const CAT_COLOR = {
   'Tips + Office':   '#fb923c',
 };
 
+const SORT_KEYS = {
+  'Restaurant': 'restaurantName',
+  'Section': 'section',
+  'Module': 'moduleName',
+  'Category': 'category',
+  'Status': 'status',
+};
+
 function IssuesTab({ restaurants }) {
   const [notes, setNotes] = useState({});
   const [saving, setSaving] = useState({}); // { key: 'saving' | 'saved' }
   const [loadingNotes, setLoadingNotes] = useState(true);
+  const [sortBy, setSortBy] = useState('restaurantName');
+  const [sortDir, setSortDir] = useState('asc'); // 'asc' | 'desc'
+  const [restaurantFilter, setRestaurantFilter] = useState('all');
 
   useEffect(() => {
     getNotes().then(n => {
@@ -27,10 +38,25 @@ function IssuesTab({ restaurants }) {
     });
   }, []);
 
+  // Unique restaurant names for the filter dropdown
+  const restaurantOptions = useMemo(() => {
+    const names = new Set();
+    for (const r of restaurants) {
+      for (const mod of r.moduleDetails || []) {
+        if (mod.status === 'On Hold' || mod.status === 'SW/Product Issue') {
+          names.add(r.name);
+          break;
+        }
+      }
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [restaurants]);
+
   // Build flat list of all On Hold / SW/Product Issue entries
   const issues = useMemo(() => {
     const rows = [];
     for (const r of restaurants) {
+      if (restaurantFilter !== 'all' && r.name !== restaurantFilter) continue;
       for (const mod of r.moduleDetails || []) {
         if (mod.status === 'On Hold' || mod.status === 'SW/Product Issue') {
           rows.push({
@@ -44,13 +70,28 @@ function IssuesTab({ restaurants }) {
         }
       }
     }
-    // Sort by restaurant name, then module name
-    rows.sort((a, b) =>
-      a.restaurantName.localeCompare(b.restaurantName) ||
-      a.moduleName.localeCompare(b.moduleName)
-    );
+    const dir = sortDir === 'asc' ? 1 : -1;
+    rows.sort((a, b) => {
+      const av = (a[sortBy] ?? '').toString();
+      const bv = (b[sortBy] ?? '').toString();
+      const primary = av.localeCompare(bv) * dir;
+      if (primary !== 0) return primary;
+      // Stable secondary sort by module name for predictable ordering
+      return a.moduleName.localeCompare(b.moduleName);
+    });
     return rows;
-  }, [restaurants]);
+  }, [restaurants, sortBy, sortDir, restaurantFilter]);
+
+  const handleSort = useCallback((key) => {
+    setSortBy(prev => {
+      if (prev === key) {
+        setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
+      setSortDir('asc');
+      return key;
+    });
+  }, []);
 
   const handleBlur = useCallback(async (key, text) => {
     setSaving(s => ({ ...s, [key]: 'saving' }));
@@ -70,10 +111,39 @@ function IssuesTab({ restaurants }) {
   return (
     <div>
       {/* Summary bar */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <Chip label="Total Issues" value={issues.length} color="#6366f1" />
         <Chip label="On Hold" value={onHoldCount} color="#f59e0b" />
         <Chip label="SW / Product Issues" value={swCount} color="#ef4444" />
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{
+            fontSize: 11, color: '#6b7280', fontWeight: 600,
+            textTransform: 'uppercase', letterSpacing: '0.07em',
+          }}>
+            Restaurant
+          </label>
+          <select
+            value={restaurantFilter}
+            onChange={e => setRestaurantFilter(e.target.value)}
+            style={{
+              background: '#12151f',
+              border: '1px solid #2d3148',
+              borderRadius: 8,
+              color: '#e5e7eb',
+              fontSize: 12,
+              padding: '7px 10px',
+              outline: 'none',
+              cursor: 'pointer',
+              minWidth: 180,
+            }}
+          >
+            <option value="all">All restaurants</option>
+            {restaurantOptions.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {issues.length === 0 ? (
@@ -90,22 +160,42 @@ function IssuesTab({ restaurants }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>
-                {['Restaurant', 'Section', 'Module', 'Category', 'Status', 'Reason / Comment'].map(h => (
-                  <th key={h} style={{
-                    padding: '10px 14px',
-                    textAlign: h === 'Reason / Comment' ? 'left' : 'left',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: '#6b7280',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    whiteSpace: 'nowrap',
-                    borderBottom: '1px solid #2d3148',
-                    background: '#12151f',
-                  }}>
-                    {h}
-                  </th>
-                ))}
+                {['Restaurant', 'Section', 'Module', 'Category', 'Status', 'Reason / Comment'].map(h => {
+                  const sortKey = SORT_KEYS[h];
+                  const isActive = sortKey && sortBy === sortKey;
+                  const arrow = !sortKey ? '' : isActive ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ' ↕';
+                  return (
+                    <th
+                      key={h}
+                      onClick={sortKey ? () => handleSort(sortKey) : undefined}
+                      style={{
+                        padding: '10px 14px',
+                        textAlign: 'left',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: isActive ? '#e5e7eb' : '#6b7280',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        whiteSpace: 'nowrap',
+                        borderBottom: '1px solid #2d3148',
+                        background: '#12151f',
+                        cursor: sortKey ? 'pointer' : 'default',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {h}
+                      {sortKey && (
+                        <span style={{
+                          marginLeft: 4,
+                          fontSize: 9,
+                          color: isActive ? '#6366f1' : '#4b5563',
+                        }}>
+                          {arrow.trim()}
+                        </span>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
