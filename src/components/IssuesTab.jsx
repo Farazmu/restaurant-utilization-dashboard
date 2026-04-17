@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { getNotes, saveNote } from '../lib/notesClient.js';
 
 const STATUS_STYLE = {
@@ -26,14 +26,14 @@ const SORT_KEYS = {
 
 function IssuesTab({ restaurants }) {
   const [notes, setNotes] = useState({});
-  const [saving, setSaving] = useState({}); // { key: 'saving' | 'saved' }
+  const [saving, setSaving] = useState({});
   const [loadingNotes, setLoadingNotes] = useState(true);
   const [sortBy, setSortBy] = useState('restaurantName');
-  const [sortDir, setSortDir] = useState('asc'); // 'asc' | 'desc'
-  const [restaurantFilter, setRestaurantFilter] = useState('all');
-  const [buddyFilter, setBuddyFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [moduleFilter, setModuleFilter] = useState('all');
+  const [sortDir, setSortDir] = useState('asc');
+  const [restaurantFilter, setRestaurantFilter] = useState([]);
+  const [buddyFilter, setBuddyFilter] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState([]);
+  const [moduleFilter, setModuleFilter] = useState([]);
 
   useEffect(() => {
     getNotes().then(n => {
@@ -42,7 +42,6 @@ function IssuesTab({ restaurants }) {
     });
   }, []);
 
-  // Unique restaurant names for the filter dropdown
   const restaurantOptions = useMemo(() => {
     const names = new Set();
     for (const r of restaurants) {
@@ -56,19 +55,17 @@ function IssuesTab({ restaurants }) {
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [restaurants]);
 
-  // Unique AIO Buddy names for the filter dropdown
   const buddyOptions = useMemo(() => {
     const names = new Set();
     for (const r of restaurants) {
-      const hasissue = (r.moduleDetails || []).some(
+      const hasIssue = (r.moduleDetails || []).some(
         m => m.status === 'On Hold' || m.status === 'SW/Product Issue'
       );
-      if (hasissue && r.aioBuddy) names.add(r.aioBuddy);
+      if (hasIssue && r.aioBuddy) names.add(r.aioBuddy);
     }
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [restaurants]);
 
-  // Unique categories and modules across all issues (unfiltered, so dropdowns stay stable)
   const { categoryOptions, moduleOptions } = useMemo(() => {
     const cats = new Set();
     const mods = new Set();
@@ -86,16 +83,15 @@ function IssuesTab({ restaurants }) {
     };
   }, [restaurants]);
 
-  // Build flat list of all On Hold / SW/Product Issue entries
   const issues = useMemo(() => {
     const rows = [];
     for (const r of restaurants) {
-      if (restaurantFilter !== 'all' && r.name !== restaurantFilter) continue;
-      if (buddyFilter !== 'all' && (r.aioBuddy || '') !== buddyFilter) continue;
+      if (restaurantFilter.length > 0 && !restaurantFilter.includes(r.name)) continue;
+      if (buddyFilter.length > 0 && !buddyFilter.includes(r.aioBuddy || '')) continue;
       for (const mod of r.moduleDetails || []) {
         if (mod.status === 'On Hold' || mod.status === 'SW/Product Issue') {
-          if (categoryFilter !== 'all' && mod.category !== categoryFilter) continue;
-          if (moduleFilter !== 'all' && mod.name !== moduleFilter) continue;
+          if (categoryFilter.length > 0 && !categoryFilter.includes(mod.category)) continue;
+          if (moduleFilter.length > 0 && !moduleFilter.includes(mod.name)) continue;
           rows.push({
             key: `note:${r.id}:${mod.fieldGid}`,
             restaurantName: r.name,
@@ -146,25 +142,18 @@ function IssuesTab({ restaurants }) {
   return (
     <div>
       {/* Summary bar */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <Chip label="Total Issues" value={issues.length} color="#6366f1" />
         <Chip label="On Hold" value={onHoldCount} color="#f59e0b" />
         <Chip label="SW / Product Issues" value={swCount} color="#ef4444" />
+      </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <FilterSelect label="Category" value={categoryFilter} onChange={setCategoryFilter} allLabel="All categories">
-            {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
-          </FilterSelect>
-          <FilterSelect label="Module" value={moduleFilter} onChange={setModuleFilter} allLabel="All modules">
-            {moduleOptions.map(m => <option key={m} value={m}>{m}</option>)}
-          </FilterSelect>
-          <FilterSelect label="AIO Buddy" value={buddyFilter} onChange={setBuddyFilter} allLabel="All buddies">
-            {buddyOptions.map(name => <option key={name} value={name}>{name}</option>)}
-          </FilterSelect>
-          <FilterSelect label="Restaurant" value={restaurantFilter} onChange={setRestaurantFilter} allLabel="All restaurants">
-            {restaurantOptions.map(name => <option key={name} value={name}>{name}</option>)}
-          </FilterSelect>
-        </div>
+      {/* Filter bar */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <MultiSelect label="Category"   options={categoryOptions}   selected={categoryFilter}   onChange={setCategoryFilter} />
+        <MultiSelect label="Module"     options={moduleOptions}     selected={moduleFilter}     onChange={setModuleFilter} />
+        <MultiSelect label="AIO Buddy"  options={buddyOptions}      selected={buddyFilter}      onChange={setBuddyFilter} />
+        <MultiSelect label="Restaurant" options={restaurantOptions} selected={restaurantFilter} onChange={setRestaurantFilter} />
       </div>
 
       {issues.length === 0 ? (
@@ -206,11 +195,7 @@ function IssuesTab({ restaurants }) {
                     >
                       {h}
                       {sortKey && (
-                        <span style={{
-                          marginLeft: 4,
-                          fontSize: 9,
-                          color: isActive ? '#6366f1' : '#4b5563',
-                        }}>
+                        <span style={{ marginLeft: 4, fontSize: 9, color: isActive ? '#6366f1' : '#4b5563' }}>
                           {arrow.trim()}
                         </span>
                       )}
@@ -243,10 +228,7 @@ const IssueRow = memo(function IssueRow({ issue, idx, note, saveState, onBlur, l
   const [localText, setLocalText] = useState(note);
   const [hovered, setHovered] = useState(false);
 
-  // Sync when notes load from server
-  useEffect(() => {
-    setLocalText(note);
-  }, [note]);
+  useEffect(() => { setLocalText(note); }, [note]);
 
   const rowBg = idx % 2 === 0 ? '#12151f' : '#14171f';
   const tdBase = {
@@ -335,33 +317,143 @@ const IssueRow = memo(function IssueRow({ issue, idx, note, saveState, onBlur, l
   );
 });
 
-function FilterSelect({ label, value, onChange, allLabel, children }) {
+function MultiSelect({ label, options, selected, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const toggle = (val) => {
+    onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
+  };
+
+  const isActive = selected.length > 0;
+  const buttonText = selected.length === 0
+    ? `All ${label}s`
+    : selected.length === 1
+      ? selected[0]
+      : `${label}: ${selected.length} selected`;
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <label style={{
-        fontSize: 11, color: '#6b7280', fontWeight: 600,
-        textTransform: 'uppercase', letterSpacing: '0.07em',
-      }}>
-        {label}
-      </label>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
         style={{
-          background: '#12151f',
-          border: '1px solid #2d3148',
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '6px 12px',
+          background: isActive ? 'rgba(99,102,241,0.15)' : '#12151f',
+          border: `1px solid ${isActive ? 'rgba(99,102,241,0.5)' : '#2d3148'}`,
           borderRadius: 8,
-          color: '#e5e7eb',
-          fontSize: 12,
-          padding: '7px 10px',
-          outline: 'none',
+          color: isActive ? '#818cf8' : '#9ca3af',
+          fontSize: 12, fontWeight: isActive ? 600 : 400,
           cursor: 'pointer',
-          minWidth: 160,
+          whiteSpace: 'nowrap',
+          fontFamily: 'inherit',
+          transition: 'all 0.15s',
         }}
       >
-        <option value="all">{allLabel}</option>
-        {children}
-      </select>
+        <span style={{
+          fontSize: 10, fontWeight: 700, color: isActive ? '#818cf8' : '#6b7280',
+          textTransform: 'uppercase', letterSpacing: '0.07em',
+        }}>
+          {label}
+        </span>
+        <span style={{ color: isActive ? '#c7d2fe' : '#6b7280' }}>
+          {isActive ? buttonText.replace(`${label}: `, '') : 'All'}
+        </span>
+        {isActive && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 16, height: 16, borderRadius: '50%',
+            background: '#6366f1', color: '#fff',
+            fontSize: 9, fontWeight: 800,
+          }}>
+            {selected.length}
+          </span>
+        )}
+        <span style={{ fontSize: 9, color: '#4b5563', marginLeft: 2 }}>▾</span>
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0,
+          zIndex: 200, minWidth: 200, maxWidth: 280,
+          background: '#1a1d27',
+          border: '1px solid #2d3148',
+          borderRadius: 10,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          overflow: 'hidden',
+        }}>
+          {/* All / Clear controls */}
+          <div style={{
+            display: 'flex', gap: 0,
+            borderBottom: '1px solid #2d3148',
+          }}>
+            <button
+              onClick={() => onChange([...options])}
+              style={{
+                flex: 1, padding: '7px 0',
+                background: 'transparent',
+                border: 'none', borderRight: '1px solid #2d3148',
+                color: '#9ca3af', fontSize: 11, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Select all
+            </button>
+            <button
+              onClick={() => onChange([])}
+              style={{
+                flex: 1, padding: '7px 0',
+                background: 'transparent',
+                border: 'none',
+                color: '#9ca3af', fontSize: 11, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Clear
+            </button>
+          </div>
+
+          {/* Options */}
+          <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            {options.map(opt => {
+              const checked = selected.includes(opt);
+              return (
+                <label
+                  key={opt}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '7px 14px',
+                    cursor: 'pointer',
+                    background: checked ? 'rgba(99,102,241,0.1)' : 'transparent',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => { if (!checked) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = checked ? 'rgba(99,102,241,0.1)' : 'transparent'; }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggle(opt)}
+                    style={{ accentColor: '#6366f1', width: 13, height: 13, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 12, color: checked ? '#c7d2fe' : '#d1d5db', fontWeight: checked ? 600 : 400 }}>
+                    {opt}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
