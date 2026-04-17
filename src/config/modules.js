@@ -27,7 +27,7 @@ export const MODULE_CONFIG = [
   { name: "Payroll",          weight: 0.2500,   category: "Payroll",         fieldGid: "1214052863237389" },
   { name: "Shift Scheduler",  weight: 0.0100,   category: "MoM",             fieldGid: "1214056466153122" },
   { name: "Time Cards",       weight: 0.0100,   category: "MoM",             fieldGid: "1214053092140678" },
-  { name: "AIO Intelligence", weight: 0.0100,   category: "Tips + Office",   fieldGid: "1214056330314189" },
+  { name: "AIO Intelligence", weight: 0.0100,   category: "MoM",             fieldGid: "1214056330314189" },
   { name: "Tip Pooling",      weight: 0.0100,   category: "Tips + Office",   fieldGid: "1214056330297171" },
   { name: "Reports",          weight: 0.0100,   category: "Tips + Office",   fieldGid: "1214056466022698" },
 ];
