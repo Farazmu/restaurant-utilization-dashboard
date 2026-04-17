@@ -32,6 +32,8 @@ function IssuesTab({ restaurants }) {
   const [sortDir, setSortDir] = useState('asc'); // 'asc' | 'desc'
   const [restaurantFilter, setRestaurantFilter] = useState('all');
   const [buddyFilter, setBuddyFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [moduleFilter, setModuleFilter] = useState('all');
 
   useEffect(() => {
     getNotes().then(n => {
@@ -66,6 +68,24 @@ function IssuesTab({ restaurants }) {
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [restaurants]);
 
+  // Unique categories and modules across all issues (unfiltered, so dropdowns stay stable)
+  const { categoryOptions, moduleOptions } = useMemo(() => {
+    const cats = new Set();
+    const mods = new Set();
+    for (const r of restaurants) {
+      for (const mod of r.moduleDetails || []) {
+        if (mod.status === 'On Hold' || mod.status === 'SW/Product Issue') {
+          if (mod.category) cats.add(mod.category);
+          if (mod.name) mods.add(mod.name);
+        }
+      }
+    }
+    return {
+      categoryOptions: Array.from(cats).sort((a, b) => a.localeCompare(b)),
+      moduleOptions: Array.from(mods).sort((a, b) => a.localeCompare(b)),
+    };
+  }, [restaurants]);
+
   // Build flat list of all On Hold / SW/Product Issue entries
   const issues = useMemo(() => {
     const rows = [];
@@ -74,6 +94,8 @@ function IssuesTab({ restaurants }) {
       if (buddyFilter !== 'all' && (r.aioBuddy || '') !== buddyFilter) continue;
       for (const mod of r.moduleDetails || []) {
         if (mod.status === 'On Hold' || mod.status === 'SW/Product Issue') {
+          if (categoryFilter !== 'all' && mod.category !== categoryFilter) continue;
+          if (moduleFilter !== 'all' && mod.name !== moduleFilter) continue;
           rows.push({
             key: `note:${r.id}:${mod.fieldGid}`,
             restaurantName: r.name,
@@ -95,7 +117,7 @@ function IssuesTab({ restaurants }) {
       return a.moduleName.localeCompare(b.moduleName);
     });
     return rows;
-  }, [restaurants, sortBy, sortDir, restaurantFilter, buddyFilter]);
+  }, [restaurants, sortBy, sortDir, restaurantFilter, buddyFilter, categoryFilter, moduleFilter]);
 
   const handleSort = useCallback((key) => {
     if (sortBy === key) {
@@ -130,63 +152,18 @@ function IssuesTab({ restaurants }) {
         <Chip label="SW / Product Issues" value={swCount} color="#ef4444" />
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{
-              fontSize: 11, color: '#6b7280', fontWeight: 600,
-              textTransform: 'uppercase', letterSpacing: '0.07em',
-            }}>
-              AIO Buddy
-            </label>
-            <select
-              value={buddyFilter}
-              onChange={e => setBuddyFilter(e.target.value)}
-              style={{
-                background: '#12151f',
-                border: '1px solid #2d3148',
-                borderRadius: 8,
-                color: '#e5e7eb',
-                fontSize: 12,
-                padding: '7px 10px',
-                outline: 'none',
-                cursor: 'pointer',
-                minWidth: 160,
-              }}
-            >
-              <option value="all">All buddies</option>
-              {buddyOptions.map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{
-              fontSize: 11, color: '#6b7280', fontWeight: 600,
-              textTransform: 'uppercase', letterSpacing: '0.07em',
-            }}>
-              Restaurant
-            </label>
-            <select
-              value={restaurantFilter}
-              onChange={e => setRestaurantFilter(e.target.value)}
-              style={{
-                background: '#12151f',
-                border: '1px solid #2d3148',
-                borderRadius: 8,
-                color: '#e5e7eb',
-                fontSize: 12,
-                padding: '7px 10px',
-                outline: 'none',
-                cursor: 'pointer',
-                minWidth: 180,
-              }}
-            >
-              <option value="all">All restaurants</option>
-              {restaurantOptions.map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-          </div>
+          <FilterSelect label="Category" value={categoryFilter} onChange={setCategoryFilter} allLabel="All categories">
+            {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+          </FilterSelect>
+          <FilterSelect label="Module" value={moduleFilter} onChange={setModuleFilter} allLabel="All modules">
+            {moduleOptions.map(m => <option key={m} value={m}>{m}</option>)}
+          </FilterSelect>
+          <FilterSelect label="AIO Buddy" value={buddyFilter} onChange={setBuddyFilter} allLabel="All buddies">
+            {buddyOptions.map(name => <option key={name} value={name}>{name}</option>)}
+          </FilterSelect>
+          <FilterSelect label="Restaurant" value={restaurantFilter} onChange={setRestaurantFilter} allLabel="All restaurants">
+            {restaurantOptions.map(name => <option key={name} value={name}>{name}</option>)}
+          </FilterSelect>
         </div>
       </div>
 
@@ -357,6 +334,37 @@ const IssueRow = memo(function IssueRow({ issue, idx, note, saveState, onBlur, l
     </tr>
   );
 });
+
+function FilterSelect({ label, value, onChange, allLabel, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <label style={{
+        fontSize: 11, color: '#6b7280', fontWeight: 600,
+        textTransform: 'uppercase', letterSpacing: '0.07em',
+      }}>
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          background: '#12151f',
+          border: '1px solid #2d3148',
+          borderRadius: 8,
+          color: '#e5e7eb',
+          fontSize: 12,
+          padding: '7px 10px',
+          outline: 'none',
+          cursor: 'pointer',
+          minWidth: 160,
+        }}
+      >
+        <option value="all">{allLabel}</option>
+        {children}
+      </select>
+    </div>
+  );
+}
 
 function Chip({ label, value, color }) {
   return (
