@@ -17,9 +17,11 @@ export default function LoginScreen({ onLogin }) {
     inputRef.current?.focus();
   }, []);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    const team = TEAM_PASSWORDS[password.trim()];
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password.trim()));
+    const hashed = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const team = TEAM_PASSWORDS[hashed];
     if (team) {
       onLogin(team);
     } else {
