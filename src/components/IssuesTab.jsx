@@ -18,6 +18,7 @@ const CAT_COLOR = {
 const SORT_KEYS = {
   'Restaurant': 'restaurantName',
   'Section': 'section',
+  'AIO Buddy': 'aioBuddy',
   'Module': 'moduleName',
   'Category': 'category',
   'Status': 'status',
@@ -30,6 +31,7 @@ function IssuesTab({ restaurants }) {
   const [sortBy, setSortBy] = useState('restaurantName');
   const [sortDir, setSortDir] = useState('asc'); // 'asc' | 'desc'
   const [restaurantFilter, setRestaurantFilter] = useState('all');
+  const [buddyFilter, setBuddyFilter] = useState('all');
 
   useEffect(() => {
     getNotes().then(n => {
@@ -52,17 +54,31 @@ function IssuesTab({ restaurants }) {
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [restaurants]);
 
+  // Unique AIO Buddy names for the filter dropdown
+  const buddyOptions = useMemo(() => {
+    const names = new Set();
+    for (const r of restaurants) {
+      const hasissue = (r.moduleDetails || []).some(
+        m => m.status === 'On Hold' || m.status === 'SW/Product Issue'
+      );
+      if (hasissue && r.aioBuddy) names.add(r.aioBuddy);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [restaurants]);
+
   // Build flat list of all On Hold / SW/Product Issue entries
   const issues = useMemo(() => {
     const rows = [];
     for (const r of restaurants) {
       if (restaurantFilter !== 'all' && r.name !== restaurantFilter) continue;
+      if (buddyFilter !== 'all' && (r.aioBuddy || '') !== buddyFilter) continue;
       for (const mod of r.moduleDetails || []) {
         if (mod.status === 'On Hold' || mod.status === 'SW/Product Issue') {
           rows.push({
             key: `note:${r.id}:${mod.fieldGid}`,
             restaurantName: r.name,
             section: r.section,
+            aioBuddy: r.aioBuddy || '—',
             moduleName: mod.name,
             category: mod.category,
             status: mod.status,
@@ -76,11 +92,10 @@ function IssuesTab({ restaurants }) {
       const bv = (b[sortBy] ?? '').toString();
       const primary = av.localeCompare(bv) * dir;
       if (primary !== 0) return primary;
-      // Stable secondary sort by module name for predictable ordering
       return a.moduleName.localeCompare(b.moduleName);
     });
     return rows;
-  }, [restaurants, sortBy, sortDir, restaurantFilter]);
+  }, [restaurants, sortBy, sortDir, restaurantFilter, buddyFilter]);
 
   const handleSort = useCallback((key) => {
     if (sortBy === key) {
@@ -114,33 +129,64 @@ function IssuesTab({ restaurants }) {
         <Chip label="On Hold" value={onHoldCount} color="#f59e0b" />
         <Chip label="SW / Product Issues" value={swCount} color="#ef4444" />
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{
-            fontSize: 11, color: '#6b7280', fontWeight: 600,
-            textTransform: 'uppercase', letterSpacing: '0.07em',
-          }}>
-            Restaurant
-          </label>
-          <select
-            value={restaurantFilter}
-            onChange={e => setRestaurantFilter(e.target.value)}
-            style={{
-              background: '#12151f',
-              border: '1px solid #2d3148',
-              borderRadius: 8,
-              color: '#e5e7eb',
-              fontSize: 12,
-              padding: '7px 10px',
-              outline: 'none',
-              cursor: 'pointer',
-              minWidth: 180,
-            }}
-          >
-            <option value="all">All restaurants</option>
-            {restaurantOptions.map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={{
+              fontSize: 11, color: '#6b7280', fontWeight: 600,
+              textTransform: 'uppercase', letterSpacing: '0.07em',
+            }}>
+              AIO Buddy
+            </label>
+            <select
+              value={buddyFilter}
+              onChange={e => setBuddyFilter(e.target.value)}
+              style={{
+                background: '#12151f',
+                border: '1px solid #2d3148',
+                borderRadius: 8,
+                color: '#e5e7eb',
+                fontSize: 12,
+                padding: '7px 10px',
+                outline: 'none',
+                cursor: 'pointer',
+                minWidth: 160,
+              }}
+            >
+              <option value="all">All buddies</option>
+              {buddyOptions.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={{
+              fontSize: 11, color: '#6b7280', fontWeight: 600,
+              textTransform: 'uppercase', letterSpacing: '0.07em',
+            }}>
+              Restaurant
+            </label>
+            <select
+              value={restaurantFilter}
+              onChange={e => setRestaurantFilter(e.target.value)}
+              style={{
+                background: '#12151f',
+                border: '1px solid #2d3148',
+                borderRadius: 8,
+                color: '#e5e7eb',
+                fontSize: 12,
+                padding: '7px 10px',
+                outline: 'none',
+                cursor: 'pointer',
+                minWidth: 180,
+              }}
+            >
+              <option value="all">All restaurants</option>
+              {restaurantOptions.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -158,7 +204,7 @@ function IssuesTab({ restaurants }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>
-                {['Restaurant', 'Section', 'Category', 'Module', 'Status', 'Reason / Comment'].map(h => {
+                {['Restaurant', 'Section', 'AIO Buddy', 'Category', 'Module', 'Status', 'Reason / Comment'].map(h => {
                   const sortKey = SORT_KEYS[h];
                   const isActive = sortKey && sortBy === sortKey;
                   const arrow = !sortKey ? '' : isActive ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ' ↕';
@@ -244,6 +290,9 @@ const IssueRow = memo(function IssueRow({ issue, idx, note, saveState, onBlur, l
       </td>
       <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
         <span style={{ fontSize: 11, color: '#9ca3af' }}>{issue.section || '---'}</span>
+      </td>
+      <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 11, color: '#a78bfa', fontWeight: 600 }}>{issue.aioBuddy}</span>
       </td>
       <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
         <span style={{ fontSize: 11, color: catColor, fontWeight: 600 }}>{issue.category}</span>
