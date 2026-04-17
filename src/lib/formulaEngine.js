@@ -14,7 +14,7 @@ export function parseStatus(status) {
     case 'On Hold':
       return { score: 0, included: false };
     case 'SW/Product Issue':
-      return { score: 0, included: false };
+      return { score: 0, included: true };
     case 'Churned':
       return { score: 0, included: false };
     case 'Not Required':
