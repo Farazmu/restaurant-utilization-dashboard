@@ -35,6 +35,9 @@ function SectionFilterBar({ sections, selectedSections, onToggle, onReset, total
       {/* Section Chips + Team Filter */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
         {/* Team Dropdown */}
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Select Team
+        </span>
         <select
           value={selectedTeam}
           onChange={e => onTeamChange(e.target.value)}
@@ -58,6 +61,9 @@ function SectionFilterBar({ sections, selectedSections, onToggle, onReset, total
         </select>
 
         <span style={{ width: 1, height: 20, background: '#2d3148', flexShrink: 0 }} />
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Restaurant Status
+        </span>
         {sections.map(({ name, count }) => {
           const color = getColor(name);
           const isActive = selectedSections.includes(name);

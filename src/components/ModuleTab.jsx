@@ -112,10 +112,10 @@ export default function ModuleTab({ restaurants }) {
       {/* ── STATUS FILTER CHIPS ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <span style={{
-          fontSize: 10, fontWeight: 700, color: '#6b7280',
+          fontSize: 10, fontWeight: 1000, color: '#4b5563',
           textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: 4,
         }}>
-          Status
+          Module Status
         </span>
         {ALL_STATUSES.map(status => {
           const isActive = selected.has(status);
