@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { MODULE_CONFIG, CATEGORIES } from '../config/modules.js';
 
-const ALL_STATUSES = ['Live', 'Onboarding', 'On Hold', 'SW/Product Issue'];
+const ALL_STATUSES = ['Live', 'Onboarding', 'On Hold', 'SW/Product Issue', 'Not Required'];
 
 const STATUS_COLOR = {
   'Live':             { bg: 'rgba(34,197,94,0.18)',  text: '#22c55e', border: 'rgba(34,197,94,0.4)'  },
   'Onboarding':       { bg: 'rgba(59,130,246,0.18)', text: '#3b82f6', border: 'rgba(59,130,246,0.4)' },
   'On Hold':          { bg: 'rgba(245,158,11,0.18)', text: '#f59e0b', border: 'rgba(245,158,11,0.4)' },
   'SW/Product Issue': { bg: 'rgba(239,68,68,0.18)',  text: '#ef4444', border: 'rgba(239,68,68,0.4)'  },
+  'Not Required':     { bg: 'rgba(107,114,128,0.18)',text: '#9ca3af', border: 'rgba(107,114,128,0.4)'},
 };
 
 const CAT_HEADER_BG = {
