@@ -158,7 +158,7 @@ function IssuesTab({ restaurants }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>
-                {['Restaurant', 'Section', 'Module', 'Category', 'Status', 'Reason / Comment'].map(h => {
+                {['Restaurant', 'Section', 'Category', 'Module', 'Status', 'Reason / Comment'].map(h => {
                   const sortKey = SORT_KEYS[h];
                   const isActive = sortKey && sortBy === sortKey;
                   const arrow = !sortKey ? '' : isActive ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ' ↕';
@@ -245,11 +245,11 @@ const IssueRow = memo(function IssueRow({ issue, idx, note, saveState, onBlur, l
       <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
         <span style={{ fontSize: 11, color: '#9ca3af' }}>{issue.section || '---'}</span>
       </td>
-      <td style={{ ...tdBase, fontWeight: 500, color: '#d1d5db', whiteSpace: 'nowrap' }}>
-        {issue.moduleName}
-      </td>
       <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
         <span style={{ fontSize: 11, color: catColor, fontWeight: 600 }}>{issue.category}</span>
+      </td>
+      <td style={{ ...tdBase, fontWeight: 500, color: '#d1d5db', whiteSpace: 'nowrap' }}>
+        {issue.moduleName}
       </td>
       <td style={{ ...tdBase, whiteSpace: 'nowrap' }}>
         <span style={{
