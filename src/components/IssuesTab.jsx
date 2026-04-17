@@ -83,15 +83,13 @@ function IssuesTab({ restaurants }) {
   }, [restaurants, sortBy, sortDir, restaurantFilter]);
 
   const handleSort = useCallback((key) => {
-    setSortBy(prev => {
-      if (prev === key) {
-        setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-        return prev;
-      }
+    if (sortBy === key) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(key);
       setSortDir('asc');
-      return key;
-    });
-  }, []);
+    }
+  }, [sortBy]);
 
   const handleBlur = useCallback(async (key, text) => {
     setSaving(s => ({ ...s, [key]: 'saving' }));
