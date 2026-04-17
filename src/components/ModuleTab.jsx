@@ -1,5 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MODULE_CONFIG, CATEGORIES } from '../config/modules.js';
+
+const ALL_STATUSES = ['Live', 'Onboarding', 'On Hold', 'SW/Product Issue'];
+
+const STATUS_COLOR = {
+  'Live':             { bg: 'rgba(34,197,94,0.18)',  text: '#22c55e', border: 'rgba(34,197,94,0.4)'  },
+  'Onboarding':       { bg: 'rgba(59,130,246,0.18)', text: '#3b82f6', border: 'rgba(59,130,246,0.4)' },
+  'On Hold':          { bg: 'rgba(245,158,11,0.18)', text: '#f59e0b', border: 'rgba(245,158,11,0.4)' },
+  'SW/Product Issue': { bg: 'rgba(239,68,68,0.18)',  text: '#ef4444', border: 'rgba(239,68,68,0.4)'  },
+};
 
 const CAT_HEADER_BG = {
   'Order & Pay':     '#0d2137',
@@ -55,6 +64,22 @@ const labelCell = {
 };
 
 export default function ModuleTab({ restaurants }) {
+  const [selected, setSelected] = useState(() => new Set(['Live']));
+
+  const toggleStatus = (status) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(status)) {
+        if (next.size > 1) next.delete(status); // keep at least one selected
+      } else {
+        next.add(status);
+      }
+      return next;
+    });
+  };
+
+  const showRate = selected.size === 1 && selected.has('Live');
+
   const { moduleData, maxAdopters } = useMemo(() => {
     const map = {};
     for (const mod of MODULE_CONFIG) {
@@ -62,12 +87,14 @@ export default function ModuleTab({ restaurants }) {
     }
     for (const r of restaurants) {
       for (const mod of r.moduleDetails) {
-        if (mod.status === 'Live') map[mod.name].adopters.push(r.name);
+        if (selected.has(mod.status)) {
+          map[mod.name].adopters.push({ name: r.name, status: mod.status });
+        }
       }
     }
     const maxAdopters = Math.max(0, ...Object.values(map).map(m => m.adopters.length));
     return { moduleData: map, maxAdopters };
-  }, [restaurants]);
+  }, [restaurants, selected]);
 
   const total = restaurants.length;
 
@@ -80,7 +107,46 @@ export default function ModuleTab({ restaurants }) {
   []);
 
   return (
-    <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 140px)', borderRadius: 12, border: '1px solid #1f2433' }}>
+    <div>
+      {/* ── STATUS FILTER CHIPS ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <span style={{
+          fontSize: 10, fontWeight: 700, color: '#6b7280',
+          textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: 4,
+        }}>
+          Status
+        </span>
+        {ALL_STATUSES.map(status => {
+          const isActive = selected.has(status);
+          const color = STATUS_COLOR[status];
+          return (
+            <button
+              key={status}
+              onClick={() => toggleStatus(status)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '5px 12px',
+                borderRadius: 9999,
+                fontSize: 11, fontWeight: 600,
+                cursor: 'pointer',
+                background: isActive ? color.bg : 'transparent',
+                color: isActive ? color.text : '#6b7280',
+                border: `1px solid ${isActive ? color.border : '#2d3148'}`,
+                transition: 'all 0.15s',
+                fontFamily: 'inherit',
+              }}
+            >
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: isActive ? color.text : '#4b5563',
+              }} />
+              {status}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 180px)', borderRadius: 12, border: '1px solid #1f2433' }}>
       <table style={{
         borderCollapse: 'separate',
         borderSpacing: 0,
@@ -168,21 +234,23 @@ export default function ModuleTab({ restaurants }) {
             })}
           </tr>
 
-          {/* ── RATE % ── */}
-          <tr>
-            <td style={{ ...cellBase, ...labelCell }}>Rate</td>
-            {MODULE_CONFIG.map(mod => {
-              const rate = total > 0 ? moduleData[mod.name].adopters.length / total : 0;
-              const { bg, text } = rateStyle(rate);
-              return (
-                <td key={mod.name} style={{ ...cellBase, textAlign: 'center', background: bg }}>
-                  <span style={{ color: text, fontWeight: 700, fontSize: 11 }}>
-                    {Math.round(rate * 100)}%
-                  </span>
-                </td>
-              );
-            })}
-          </tr>
+          {/* ── RATE % (only when filter is exactly Live) ── */}
+          {showRate && (
+            <tr>
+              <td style={{ ...cellBase, ...labelCell }}>Rate</td>
+              {MODULE_CONFIG.map(mod => {
+                const rate = total > 0 ? moduleData[mod.name].adopters.length / total : 0;
+                const { bg, text } = rateStyle(rate);
+                return (
+                  <td key={mod.name} style={{ ...cellBase, textAlign: 'center', background: bg }}>
+                    <span style={{ color: text, fontWeight: 700, fontSize: 11 }}>
+                      {Math.round(rate * 100)}%
+                    </span>
+                  </td>
+                );
+              })}
+            </tr>
+          )}
         </thead>
 
         {/* ── RESTAURANT ROWS ── */}
@@ -193,19 +261,23 @@ export default function ModuleTab({ restaurants }) {
                 {i === 0 ? 'Restaurants' : ''}
               </td>
               {MODULE_CONFIG.map(mod => {
-                const name = moduleData[mod.name].adopters[i];
+                const adopter = moduleData[mod.name].adopters[i];
+                const showStatusColor = adopter && !showRate; // tint only when mixed/non-Live
+                const col = adopter && STATUS_COLOR[adopter.status];
                 return (
                   <td key={mod.name} style={{
                     ...cellBase,
                     textAlign: 'center',
-                    color: '#9ca3af',
+                    color: showStatusColor && col ? col.text : '#9ca3af',
                     fontSize: 10,
                     background: i % 2 === 0 ? '#0f1117' : '#0d0f16',
                     maxWidth: COL_W,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                  }}>
-                    {name || ''}
+                  }}
+                  title={adopter ? `${adopter.name} — ${adopter.status}` : ''}
+                  >
+                    {adopter ? adopter.name : ''}
                   </td>
                 );
               })}
@@ -213,6 +285,7 @@ export default function ModuleTab({ restaurants }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
