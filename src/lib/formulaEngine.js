@@ -9,19 +9,23 @@ export function parseStatus(status) {
   switch (s) {
     case 'Live':
       return { score: 1, included: true };
-    case 'Onboarding':
+    case 'In Progress':
       return { score: 0, included: true };
     case 'On Hold':
-      return { score: 0, included: true };
+      return { score: 0, included: false };
     case 'SW/Product Issue':
-      return { score: 0, included: true };
+      return { score: 0, included: false };
     case 'Churned':
-      return { score: 0, included: true };
+      return { score: 0, included: false };
     case 'Not Required':
       return { score: 0, included: false };
+    case 'Not Applicable':
+      return { score: 0, included: false };
+    case 'Pending':
+      return { score: 0, included: true };
     default:
       // Unknown / null → excluded
-      return { score: 0, included: false };
+      return { score: 0, included: true };
   }
 }
 

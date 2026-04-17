@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { getNotes, saveNote } from '../lib/notesClient.js';
 
-const ALL_STATUSES = ['On Hold', 'SW/Product Issue', 'Onboarding', 'Not Required'];
+const ALL_STATUSES = ['Live', 'In Progress', 'Pending', 'On Hold', 'SW/Product Issue', 'Not Required', 'Not Applicable'];
 
 const STATUS_STYLE = {
+  'Live':             { bg: 'rgba(34,197,94,0.15)',   text: '#22c55e', border: 'rgba(34,197,94,0.3)'   },
+  'In Progress':      { bg: 'rgba(59,130,246,0.15)',  text: '#3b82f6', border: 'rgba(59,130,246,0.3)'  },
+  'Pending':          { bg: 'rgba(168,85,247,0.15)',  text: '#a855f7', border: 'rgba(168,85,247,0.3)'  },
   'On Hold':          { bg: 'rgba(245,158,11,0.15)',  text: '#f59e0b', border: 'rgba(245,158,11,0.3)'  },
   'SW/Product Issue': { bg: 'rgba(239,68,68,0.15)',   text: '#ef4444', border: 'rgba(239,68,68,0.3)'   },
-  'Live':             { bg: 'rgba(34,197,94,0.15)',   text: '#22c55e', border: 'rgba(34,197,94,0.3)'   },
-  'Onboarding':       { bg: 'rgba(99,102,241,0.15)',  text: '#818cf8', border: 'rgba(99,102,241,0.3)'  },
+  'Not Required':     { bg: 'rgba(107,114,128,0.15)', text: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
+  'Not Applicable':   { bg: 'rgba(75,85,99,0.15)',    text: '#6b7280', border: 'rgba(75,85,99,0.3)'    },
   'Churned':          { bg: 'rgba(107,114,128,0.15)', text: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
-  'Not Required':     { bg: 'rgba(75,85,99,0.15)',    text: '#6b7280', border: 'rgba(75,85,99,0.3)'    },
 };
 
 const CAT_COLOR = {

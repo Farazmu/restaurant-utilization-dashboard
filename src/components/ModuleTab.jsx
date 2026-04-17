@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
 import { MODULE_CONFIG, CATEGORIES } from '../config/modules.js';
 
-const ALL_STATUSES = ['Live', 'Onboarding', 'On Hold', 'SW/Product Issue', 'Not Required'];
+const ALL_STATUSES = ['Live', 'In Progress', 'Pending', 'On Hold', 'SW/Product Issue', 'Not Required', 'Not Applicable'];
 
 const STATUS_COLOR = {
-  'Live':             { bg: 'rgba(34,197,94,0.18)',  text: '#22c55e', border: 'rgba(34,197,94,0.4)'  },
-  'Onboarding':       { bg: 'rgba(59,130,246,0.18)', text: '#3b82f6', border: 'rgba(59,130,246,0.4)' },
-  'On Hold':          { bg: 'rgba(245,158,11,0.18)', text: '#f59e0b', border: 'rgba(245,158,11,0.4)' },
-  'SW/Product Issue': { bg: 'rgba(239,68,68,0.18)',  text: '#ef4444', border: 'rgba(239,68,68,0.4)'  },
-  'Not Required':     { bg: 'rgba(107,114,128,0.18)',text: '#9ca3af', border: 'rgba(107,114,128,0.4)'},
+  'Live':             { bg: 'rgba(34,197,94,0.18)',   text: '#22c55e', border: 'rgba(34,197,94,0.4)'   },
+  'In Progress':      { bg: 'rgba(59,130,246,0.18)',  text: '#3b82f6', border: 'rgba(59,130,246,0.4)'  },
+  'Pending':          { bg: 'rgba(168,85,247,0.18)',  text: '#a855f7', border: 'rgba(168,85,247,0.4)'  },
+  'On Hold':          { bg: 'rgba(245,158,11,0.18)',  text: '#f59e0b', border: 'rgba(245,158,11,0.4)'  },
+  'SW/Product Issue': { bg: 'rgba(239,68,68,0.18)',   text: '#ef4444', border: 'rgba(239,68,68,0.4)'   },
+  'Not Required':     { bg: 'rgba(107,114,128,0.18)', text: '#9ca3af', border: 'rgba(107,114,128,0.4)' },
+  'Not Applicable':   { bg: 'rgba(75,85,99,0.18)',    text: '#6b7280', border: 'rgba(75,85,99,0.4)'    },
 };
 
 const CAT_HEADER_BG = {

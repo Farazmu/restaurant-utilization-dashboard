@@ -45,14 +45,14 @@ export default function OnboardingSection({ restaurants, onRowClick }) {
 }
 
 function OnboardingRow({ restaurant: r, idx, onClick }) {
-  const onboardingModules = r.moduleDetails.filter(m => m.status === 'Onboarding');
+  const onboardingModules = r.moduleDetails.filter(m => m.status === 'In Progress');
   const totalIncluded = r.moduleDetails.filter(m => m.included).length;
 
-  // Per-category: count onboarding modules
+  // Per-category: count in-progress modules
   const catSummary = {};
   for (const cat of CATEGORIES) {
     const catMods = r.moduleDetails.filter(m => m.category === cat);
-    const onb = catMods.filter(m => m.status === 'Onboarding').length;
+    const onb = catMods.filter(m => m.status === 'In Progress').length;
     const live = catMods.filter(m => m.status === 'Live').length;
     const total = catMods.filter(m => m.included).length;
     catSummary[cat] = { onb, live, total };
