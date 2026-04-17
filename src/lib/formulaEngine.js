@@ -68,13 +68,41 @@ export function calcUtilization(modules, moduleStatuses) {
   return numerator / denominator;
 }
 
-// Health label from utilization score
+// Health label from a 0–1 score
 export function getHealth(score) {
   if (score === null) return 'N/A';
   if (score >= 0.70) return 'Healthy';
   if (score >= 0.50) return 'Moderate';
   if (score >= 0.30) return 'At Risk';
   return 'Critical';
+}
+
+// Category-priority weights used for health score (not utilization)
+// Order & Pay carries 50% influence; Payroll 25%; rest share remaining 25%
+export const HEALTH_CATEGORY_WEIGHTS = {
+  'Order & Pay':     0.50,
+  'Payroll':         0.25,
+  'Marketing (On)':  0.12,
+  'Marketing (Off)': 0.08,
+  'MoM':             0.03,
+  'Tips + Office':   0.02,
+};
+
+// Composite health score weighted by business-priority category weights.
+// Only categories with a non-null score (i.e. at least one included module)
+// contribute, so their weights are re-normalised automatically.
+export function calcHealthScore(categoryScores) {
+  let numerator = 0;
+  let denominator = 0;
+  for (const [cat, weight] of Object.entries(HEALTH_CATEGORY_WEIGHTS)) {
+    const score = categoryScores[cat];
+    if (score !== null) {
+      numerator += weight * score;
+      denominator += weight;
+    }
+  }
+  if (denominator === 0) return null;
+  return numerator / denominator;
 }
 
 // Full enrichment for one restaurant task
@@ -86,6 +114,9 @@ export function enrichRestaurant(task) {
     const catModules = MODULE_CONFIG.filter(m => m.category === cat);
     categoryScores[cat] = calcUtilization(catModules, task.moduleStatuses);
   }
+
+  // Health score uses category-priority weights (not raw module weights)
+  const healthScore = calcHealthScore(categoryScores);
 
   // Build per-module detail
   const moduleDetails = MODULE_CONFIG.map(mod => ({
@@ -99,7 +130,8 @@ export function enrichRestaurant(task) {
   return {
     ...task,
     overall,
-    health: getHealth(overall),
+    healthScore,
+    health: getHealth(healthScore),
     categoryScores,
     moduleDetails,
     lifecycle,

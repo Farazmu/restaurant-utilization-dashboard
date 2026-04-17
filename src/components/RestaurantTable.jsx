@@ -22,10 +22,9 @@ const CAT_ABBREV = {
   'Tips + Office':   'Tips+Off',
 };
 
-function RestaurantTable({ restaurants, onRowClick }) {
+function RestaurantTable({ restaurants, onRowClick, healthFilter: healthFilterProp = 'All', onHealthFilterChange }) {
   const [sortCol, setSortCol] = useState('overall');
   const [sortDir, setSortDir] = useState('desc');
-  const [healthFilter, setHealthFilter] = useState('All');
   const [buddyFilter, setBuddyFilter] = useState('All');
   const [search, setSearch] = useState('');
 
@@ -43,13 +42,13 @@ function RestaurantTable({ restaurants, onRowClick }) {
 
   const filtered = useMemo(() => {
     return restaurants.filter(r => {
-      if (healthFilter !== 'All' && r.health !== healthFilter) return false;
+      if (healthFilterProp !== 'All' && r.health !== healthFilterProp) return false;
       if (buddyFilter !== 'All' && r.aioBuddy !== buddyFilter) return false;
       if (sectionFilter !== 'All' && r.section !== sectionFilter) return false;
       if (search && !r.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [restaurants, healthFilter, buddyFilter, sectionFilter, search]);
+  }, [restaurants, healthFilterProp, buddyFilter, sectionFilter, search]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -62,6 +61,9 @@ function RestaurantTable({ restaurants, onRowClick }) {
       if (sortCol === 'overall') {
         av = a.overall ?? -1;
         bv = b.overall ?? -1;
+      } else if (sortCol === 'healthScore') {
+        av = a.healthScore ?? -1;
+        bv = b.healthScore ?? -1;
       } else if (sortCol === 'health') {
         const order = { Healthy: 4, Moderate: 3, 'At Risk': 2, Critical: 1, 'N/A': 0 };
         av = order[a.health] ?? 0;
@@ -144,7 +146,7 @@ function RestaurantTable({ restaurants, onRowClick }) {
             onBlur={e => e.target.style.borderColor = '#2d3148'}
           />
         </div>
-        <Select value={healthFilter} onChange={setHealthFilter} options={HEALTH_OPTIONS} label="Health" />
+        <Select value={healthFilterProp} onChange={v => onHealthFilterChange?.(v)} options={HEALTH_OPTIONS} label="Health" />
         <Select value={buddyFilter} onChange={setBuddyFilter} options={buddyOptions} label="AIO Buddy" />
         <Select value={sectionFilter} onChange={setSectionFilter} options={sectionOptions} label="Section" />
         <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4, fontVariantNumeric: 'tabular-nums' }}>
@@ -172,6 +174,9 @@ function RestaurantTable({ restaurants, onRowClick }) {
               <th style={{ ...thStyle('overall'), minWidth: 130 }} onClick={() => handleSort('overall')}>
                 Utilization <SortIcon col="overall" />
               </th>
+              <th style={{ ...thStyle('healthScore'), minWidth: 130 }} onClick={() => handleSort('healthScore')}>
+                Health Score <SortIcon col="healthScore" />
+              </th>
               <th style={thStyle('health')} onClick={() => handleSort('health')}>
                 Health <SortIcon col="health" />
               </th>
@@ -188,7 +193,7 @@ function RestaurantTable({ restaurants, onRowClick }) {
             ))}
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={6 + CATEGORIES.length} style={{ textAlign: 'center', padding: '40px', color: '#6b7280', fontSize: 13 }}>
+                <td colSpan={7 + CATEGORIES.length} style={{ textAlign: 'center', padding: '40px', color: '#6b7280', fontSize: 13 }}>
                   No restaurants match your filters
                 </td>
               </tr>
@@ -211,7 +216,15 @@ export default memo(RestaurantTable);
 function TableRow({ restaurant: r, idx, onClick }) {
   const [hovered, setHovered] = useState(false);
   const health = r.health;
+  // hColor drives the health score column and health pill
   const hColor = HEALTH_COLORS[health] || '#6b7280';
+  // uColor reflects where overall utilization sits on the same scale (independent of health score)
+  const overallLabel = r.overall === null ? 'N/A'
+    : r.overall >= 0.70 ? 'Healthy'
+    : r.overall >= 0.50 ? 'Moderate'
+    : r.overall >= 0.30 ? 'At Risk'
+    : 'Critical';
+  const uColor = HEALTH_COLORS[overallLabel] || '#6b7280';
 
   const rowBg = idx % 2 === 0 ? '#12151f' : '#14171f';
   const tdBase = {
@@ -223,6 +236,7 @@ function TableRow({ restaurant: r, idx, onClick }) {
   };
 
   const pct = r.overall !== null ? (r.overall * 100).toFixed(1) + '%' : '---';
+  const hsPct = r.healthScore !== null ? (r.healthScore * 100).toFixed(1) + '%' : '---';
 
   return (
     <tr
@@ -244,11 +258,21 @@ function TableRow({ restaurant: r, idx, onClick }) {
       </td>
       <td style={{ ...tdBase, minWidth: 130 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: hColor, minWidth: 42, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: uColor, minWidth: 42, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
             {pct}
           </span>
           <div style={{ width: 64 }}>
-            <ProgressBar value={r.overall} height={5} color={hColor} />
+            <ProgressBar value={r.overall} height={5} color={uColor} />
+          </div>
+        </div>
+      </td>
+      <td style={{ ...tdBase, minWidth: 130 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: hColor, minWidth: 42, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+            {hsPct}
+          </span>
+          <div style={{ width: 64 }}>
+            <ProgressBar value={r.healthScore} height={5} color={hColor} />
           </div>
         </div>
       </td>

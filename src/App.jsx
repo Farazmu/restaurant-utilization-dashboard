@@ -51,6 +51,7 @@ export default function App() {
       return localStorage.getItem('aio-selected-team') || 'All';
     } catch { return 'All'; }
   });
+  const [healthFilter, setHealthFilter] = useState('All');
 
   // Persist active tab to localStorage
   useEffect(() => {
@@ -324,7 +325,7 @@ export default function App() {
           <>
             {/* Summary */}
             <section style={{ marginBottom: 24 }}>
-              <SummaryBar restaurants={filtered} />
+              <SummaryBar restaurants={filtered} healthFilter={healthFilter} onHealthFilterChange={setHealthFilter} />
             </section>
 
             {/* Restaurant Table */}
@@ -332,7 +333,7 @@ export default function App() {
               <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
                 {sectionTitle}
               </div>
-              <RestaurantTable restaurants={filtered} onRowClick={handleSelect} />
+              <RestaurantTable restaurants={filtered} onRowClick={handleSelect} healthFilter={healthFilter} onHealthFilterChange={setHealthFilter} />
             </section>
 
             {/* Marketing Live Section (shown when Marketing Live is selected) */}
