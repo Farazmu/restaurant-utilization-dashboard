@@ -1,9 +1,15 @@
 import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { getNotes, saveNote } from '../lib/notesClient.js';
 
+const ALL_STATUSES = ['On Hold', 'SW/Product Issue', 'Onboarding', 'Not Required'];
+
 const STATUS_STYLE = {
   'On Hold':          { bg: 'rgba(245,158,11,0.15)',  text: '#f59e0b', border: 'rgba(245,158,11,0.3)'  },
   'SW/Product Issue': { bg: 'rgba(239,68,68,0.15)',   text: '#ef4444', border: 'rgba(239,68,68,0.3)'   },
+  'Live':             { bg: 'rgba(34,197,94,0.15)',   text: '#22c55e', border: 'rgba(34,197,94,0.3)'   },
+  'Onboarding':       { bg: 'rgba(99,102,241,0.15)',  text: '#818cf8', border: 'rgba(99,102,241,0.3)'  },
+  'Churned':          { bg: 'rgba(107,114,128,0.15)', text: '#9ca3af', border: 'rgba(107,114,128,0.3)' },
+  'Not Required':     { bg: 'rgba(75,85,99,0.15)',    text: '#6b7280', border: 'rgba(75,85,99,0.3)'    },
 };
 
 const CAT_COLOR = {
@@ -30,6 +36,7 @@ function IssuesTab({ restaurants }) {
   const [loadingNotes, setLoadingNotes] = useState(true);
   const [sortBy, setSortBy] = useState('restaurantName');
   const [sortDir, setSortDir] = useState('asc');
+  const [statusFilter, setStatusFilter] = useState(['On Hold', 'SW/Product Issue']);
   const [restaurantFilter, setRestaurantFilter] = useState([]);
   const [buddyFilter, setBuddyFilter] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState([]);
@@ -42,68 +49,63 @@ function IssuesTab({ restaurants }) {
     });
   }, []);
 
-  const restaurantOptions = useMemo(() => {
-    const names = new Set();
+  const allRows = useMemo(() => {
+    const rows = [];
     for (const r of restaurants) {
       for (const mod of r.moduleDetails || []) {
-        if (mod.status === 'On Hold' || mod.status === 'SW/Product Issue') {
-          names.add(r.name);
-          break;
-        }
+        if (!mod.status) continue;
+        rows.push({
+          key: `note:${r.id}:${mod.fieldGid}`,
+          restaurantName: r.name,
+          section: r.section,
+          aioBuddy: r.aioBuddy || '—',
+          moduleName: mod.name,
+          category: mod.category,
+          status: mod.status,
+        });
       }
     }
-    return Array.from(names).sort((a, b) => a.localeCompare(b));
+    return rows;
   }, [restaurants]);
 
-  const buddyOptions = useMemo(() => {
-    const names = new Set();
-    for (const r of restaurants) {
-      const hasIssue = (r.moduleDetails || []).some(
-        m => m.status === 'On Hold' || m.status === 'SW/Product Issue'
-      );
-      if (hasIssue && r.aioBuddy) names.add(r.aioBuddy);
+  const statusCounts = useMemo(() => {
+    const counts = {};
+    for (const row of allRows) {
+      counts[row.status] = (counts[row.status] || 0) + 1;
     }
-    return Array.from(names).sort((a, b) => a.localeCompare(b));
-  }, [restaurants]);
+    return counts;
+  }, [allRows]);
+
+  const restaurantOptions = useMemo(() => (
+    Array.from(new Set(allRows.map(r => r.restaurantName))).sort((a, b) => a.localeCompare(b))
+  ), [allRows]);
+
+  const buddyOptions = useMemo(() => (
+    Array.from(new Set(allRows.map(r => r.aioBuddy).filter(b => b && b !== '—'))).sort((a, b) => a.localeCompare(b))
+  ), [allRows]);
 
   const { categoryOptions, moduleOptions } = useMemo(() => {
     const cats = new Set();
     const mods = new Set();
-    for (const r of restaurants) {
-      for (const mod of r.moduleDetails || []) {
-        if (mod.status === 'On Hold' || mod.status === 'SW/Product Issue') {
-          if (mod.category) cats.add(mod.category);
-          if (mod.name) mods.add(mod.name);
-        }
-      }
+    for (const row of allRows) {
+      if (row.category) cats.add(row.category);
+      if (row.moduleName) mods.add(row.moduleName);
     }
     return {
       categoryOptions: Array.from(cats).sort((a, b) => a.localeCompare(b)),
       moduleOptions: Array.from(mods).sort((a, b) => a.localeCompare(b)),
     };
-  }, [restaurants]);
+  }, [allRows]);
 
   const issues = useMemo(() => {
-    const rows = [];
-    for (const r of restaurants) {
-      if (restaurantFilter.length > 0 && !restaurantFilter.includes(r.name)) continue;
-      if (buddyFilter.length > 0 && !buddyFilter.includes(r.aioBuddy || '')) continue;
-      for (const mod of r.moduleDetails || []) {
-        if (mod.status === 'On Hold' || mod.status === 'SW/Product Issue') {
-          if (categoryFilter.length > 0 && !categoryFilter.includes(mod.category)) continue;
-          if (moduleFilter.length > 0 && !moduleFilter.includes(mod.name)) continue;
-          rows.push({
-            key: `note:${r.id}:${mod.fieldGid}`,
-            restaurantName: r.name,
-            section: r.section,
-            aioBuddy: r.aioBuddy || '—',
-            moduleName: mod.name,
-            category: mod.category,
-            status: mod.status,
-          });
-        }
-      }
-    }
+    const rows = allRows.filter(row => {
+      if (statusFilter.length > 0 && !statusFilter.includes(row.status)) return false;
+      if (restaurantFilter.length > 0 && !restaurantFilter.includes(row.restaurantName)) return false;
+      if (buddyFilter.length > 0 && !buddyFilter.includes(row.aioBuddy)) return false;
+      if (categoryFilter.length > 0 && !categoryFilter.includes(row.category)) return false;
+      if (moduleFilter.length > 0 && !moduleFilter.includes(row.moduleName)) return false;
+      return true;
+    });
     const dir = sortDir === 'asc' ? 1 : -1;
     rows.sort((a, b) => {
       const av = (a[sortBy] ?? '').toString();
@@ -113,7 +115,7 @@ function IssuesTab({ restaurants }) {
       return a.moduleName.localeCompare(b.moduleName);
     });
     return rows;
-  }, [restaurants, sortBy, sortDir, restaurantFilter, buddyFilter, categoryFilter, moduleFilter]);
+  }, [allRows, statusFilter, restaurantFilter, buddyFilter, categoryFilter, moduleFilter, sortBy, sortDir]);
 
   const handleSort = useCallback((key) => {
     if (sortBy === key) {
@@ -136,16 +138,41 @@ function IssuesTab({ restaurants }) {
     }), 2000);
   }, []);
 
-  const onHoldCount = issues.filter(i => i.status === 'On Hold').length;
-  const swCount = issues.filter(i => i.status === 'SW/Product Issue').length;
+  const toggleStatus = useCallback((status) => {
+    setStatusFilter(prev =>
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+    );
+  }, []);
 
   return (
     <div>
-      {/* Summary bar */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Chip label="Total Issues" value={issues.length} color="#6366f1" />
-        <Chip label="On Hold" value={onHoldCount} color="#f59e0b" />
-        <Chip label="SW / Product Issues" value={swCount} color="#ef4444" />
+      {/* Summary / status filter bar */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Chip label="Showing" value={issues.length} color="#6366f1" />
+        {ALL_STATUSES.map(status => {
+          const style = STATUS_STYLE[status];
+          const selected = statusFilter.includes(status);
+          const count = statusCounts[status] || 0;
+          return (
+            <div
+              key={status}
+              onClick={() => toggleStatus(status)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                background: selected ? style.bg : '#12151f',
+                border: `1px solid ${selected ? style.border : '#2d3148'}`,
+                borderRadius: 10, padding: '10px 16px',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                userSelect: 'none',
+                opacity: selected ? 1 : 0.5,
+              }}
+            >
+              <span style={{ fontSize: 22, fontWeight: 800, color: style.text, fontVariantNumeric: 'tabular-nums' }}>{count}</span>
+              <span style={{ fontSize: 11, color: selected ? '#d1d5db' : '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{status}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Filter bar */}
@@ -163,7 +190,7 @@ function IssuesTab({ restaurants }) {
           border: '1px solid #1f2433', borderRadius: 12,
           background: '#12151f',
         }}>
-          No On Hold or SW/Product Issues found.
+          No modules found for the selected filters.
         </div>
       ) : (
         <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid #1f2433' }}>
