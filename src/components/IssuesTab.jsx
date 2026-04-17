@@ -73,10 +73,14 @@ function IssuesTab({ restaurants }) {
   const statusCounts = useMemo(() => {
     const counts = {};
     for (const row of allRows) {
+      if (restaurantFilter.length > 0 && !restaurantFilter.includes(row.restaurantName)) continue;
+      if (buddyFilter.length > 0 && !buddyFilter.includes(row.aioBuddy)) continue;
+      if (categoryFilter.length > 0 && !categoryFilter.includes(row.category)) continue;
+      if (moduleFilter.length > 0 && !moduleFilter.includes(row.moduleName)) continue;
       counts[row.status] = (counts[row.status] || 0) + 1;
     }
     return counts;
-  }, [allRows]);
+  }, [allRows, restaurantFilter, buddyFilter, categoryFilter, moduleFilter]);
 
   const restaurantOptions = useMemo(() => (
     Array.from(new Set(allRows.map(r => r.restaurantName))).sort((a, b) => a.localeCompare(b))
