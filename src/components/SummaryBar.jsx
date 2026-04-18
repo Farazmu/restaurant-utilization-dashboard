@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import { memo, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { HEALTH_COLORS } from './ProgressBar.jsx';
 
 const HEALTH_ORDER = ['Healthy', 'Moderate', 'At Risk', 'Critical'];
@@ -43,6 +44,7 @@ function SummaryBar({ restaurants, healthFilter = 'All', onHealthFilterChange })
           gradient="linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.04))"
           borderColor="#8b5cf640"
           accentColor="#c4b5fd"
+          tooltip="The average across all restaurants shown. Utilization measures how much of the platform each restaurant is using — features like online ordering, kiosks, and loyalty each contribute. 100% means every applicable feature for that restaurant is live and active."
         />
         <StatCard
           label="Avg Health Score"
@@ -51,6 +53,7 @@ function SummaryBar({ restaurants, healthFilter = 'All', onHealthFilterChange })
           gradient="linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.04))"
           borderColor="#10b98140"
           accentColor="#6ee7b7"
+          tooltip="The average health score across all restaurants shown. Health score is an overall rating — like a report card — based on how much of the platform each restaurant uses, with core features like Order & Pay weighted more heavily than others."
         />
       </div>
 
@@ -83,7 +86,7 @@ function SummaryBar({ restaurants, healthFilter = 'All', onHealthFilterChange })
 
 export default memo(SummaryBar);
 
-function StatCard({ label, value, icon, gradient, borderColor, accentColor }) {
+function StatCard({ label, value, icon, gradient, borderColor, accentColor, tooltip }) {
   return (
     <div style={{
       background: gradient,
@@ -97,8 +100,9 @@ function StatCard({ label, value, icon, gradient, borderColor, accentColor }) {
       gap: 12,
     }}>
       <div>
-        <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, fontWeight: 600 }}>
+        <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
           {label}
+          {tooltip && <InfoTooltip text={tooltip} />}
         </div>
         <div style={{ fontSize: 28, fontWeight: 800, color: accentColor, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       </div>
@@ -106,6 +110,55 @@ function StatCard({ label, value, icon, gradient, borderColor, accentColor }) {
         <span dangerouslySetInnerHTML={{ __html: icon }} />
       </div>
     </div>
+  );
+}
+
+function InfoTooltip({ text }) {
+  const [coords, setCoords] = useState(null);
+  const iconRef = useRef(null);
+
+  function handleMouseEnter() {
+    const rect = iconRef.current.getBoundingClientRect();
+    setCoords({ top: rect.bottom + 8, left: rect.left + rect.width / 2 });
+  }
+
+  return (
+    <span
+      style={{ display: 'inline-flex', alignItems: 'center' }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setCoords(null)}
+    >
+      <span ref={iconRef} style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 13, height: 13, borderRadius: '50%',
+        border: '1px solid #4b5563', color: '#6b7280',
+        fontSize: 8, fontWeight: 700, cursor: 'default',
+        lineHeight: 1, textTransform: 'none', letterSpacing: 0,
+        userSelect: 'none', flexShrink: 0,
+      }}>i</span>
+      {coords && createPortal(
+        <div style={{
+          position: 'fixed', top: coords.top, left: coords.left,
+          transform: 'translateX(-50%)',
+          background: '#1e2433', border: '1px solid #374151',
+          borderRadius: 10, padding: '10px 14px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          width: 240, zIndex: 9999,
+          fontSize: 11, color: '#d1d5db', lineHeight: 1.6,
+          fontWeight: 400, textTransform: 'none', letterSpacing: 0,
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            position: 'absolute', bottom: '100%', left: '50%',
+            transform: 'translateX(-50%)',
+            borderWidth: '0 5px 5px', borderStyle: 'solid',
+            borderColor: 'transparent transparent #374151',
+          }} />
+          {text}
+        </div>,
+        document.body
+      )}
+    </span>
   );
 }
 
