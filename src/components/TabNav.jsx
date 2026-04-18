@@ -8,7 +8,8 @@ const TABS = [
   { id: 'issues', label: 'Issues' },
 ];
 
-function TabNav({ activeTab, onTabChange }) {
+function TabNav({ activeTab, onTabChange, allowedTabs }) {
+  const visibleTabs = allowedTabs ? TABS.filter(t => allowedTabs.includes(t.id)) : TABS;
   return (
     <div style={{
       background: '#0f1117',
@@ -21,7 +22,7 @@ function TabNav({ activeTab, onTabChange }) {
       zIndex: 49,
       overflowX: 'auto',
     }}>
-      {TABS.map(tab => {
+      {visibleTabs.map(tab => {
         const isActive = activeTab === tab.id;
         return (
           <button

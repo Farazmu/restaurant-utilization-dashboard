@@ -1,6 +1,7 @@
 /**
- * Auth configuration — password-to-team mapping.
+ * Auth configuration — password-to-team mapping and per-team permissions.
  * Add new entries to TEAM_PASSWORDS to grant access to additional teams.
+ * Adjust TEAM_PERMISSIONS to change what each team can see and do.
  */
 
 export const TEAM_PASSWORDS = {
@@ -10,6 +11,18 @@ export const TEAM_PASSWORDS = {
   '7e070743aeba56a6a6ced1647ef2927888037f7e7d3074ff4d29b1828daa3913': 'Product',
   '3574735fec88e4b189df9e0595944922b5bfd96eb098440f4c6f508964381c2d': 'Leadership',
 };
+
+export const TEAM_PERMISSIONS = {
+  'Admin':            { tabs: ['overview', 'dashboard', 'analytics', 'modules', 'issues'], canEditNotes: true  },
+  'Customer Success': { tabs: ['overview', 'dashboard', 'issues'],                         canEditNotes: true  },
+  'Sales':            { tabs: ['overview', 'dashboard'],                                   canEditNotes: false },
+  'Product':          { tabs: ['overview', 'dashboard', 'analytics', 'modules', 'issues'], canEditNotes: false },
+  'Leadership':       { tabs: ['overview', 'dashboard', 'analytics'],                      canEditNotes: false },
+};
+
+export function getPermissions(team) {
+  return TEAM_PERMISSIONS[team] ?? { tabs: ['overview'], canEditNotes: false };
+}
 
 /** Session duration in milliseconds (12 hours). */
 export const SESSION_DURATION_MS = 12 * 60 * 60 * 1000;
