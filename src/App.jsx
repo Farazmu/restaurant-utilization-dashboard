@@ -3,6 +3,7 @@ import { fetchAllTasks } from './lib/asanaClient.js';
 import { enrichAll } from './lib/formulaEngine.js';
 import { getCachedData, setCachedData } from './lib/cache.js';
 import { getSession, setSession, clearSession } from './lib/authStore.js';
+import { getPermissions } from './config/auth.js';
 import { runFormulaVerification } from './lib/verifyOnLoad.js';
 import LoginScreen from './components/LoginScreen.jsx';
 import SummaryBar from './components/SummaryBar.jsx';
@@ -40,6 +41,15 @@ export default function App() {
       return ['overview', 'dashboard', 'analytics', 'modules', 'issues'].includes(saved) ? saved : 'overview';
     } catch { return 'overview'; }
   });
+
+  const perms = useMemo(() => getPermissions(authTeam), [authTeam]);
+
+  // Clamp active tab to first allowed tab when permissions change (e.g. on login)
+  useEffect(() => {
+    if (authTeam && !perms.tabs.includes(activeTab)) {
+      setActiveTab(perms.tabs[0]);
+    }
+  }, [authTeam, perms.tabs]);
   const [selectedSections, setSelectedSections] = useState(() => {
     try {
       const saved = localStorage.getItem('aio-selected-sections');
@@ -270,7 +280,7 @@ export default function App() {
       </div>
 
       {/* Tab Bar */}
-      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} allowedTabs={perms.tabs} />
 
       {/* Section Filter */}
       <SectionFilterBar
@@ -365,7 +375,7 @@ export default function App() {
         ) : activeTab === 'modules' ? (
           <ModuleTab restaurants={active} />
         ) : activeTab === 'issues' ? (
-          <IssuesTab restaurants={active} />
+          <IssuesTab restaurants={active} canEditNotes={perms.canEditNotes} />
         ) : (
           <AnalyticsTab restaurants={active} />
         )}

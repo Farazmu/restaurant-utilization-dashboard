@@ -32,7 +32,7 @@ const SORT_KEYS = {
   'Status': 'status',
 };
 
-function IssuesTab({ restaurants }) {
+function IssuesTab({ restaurants, canEditNotes }) {
   const [notes, setNotes] = useState({});
   const [saving, setSaving] = useState({});
   const [loadingNotes, setLoadingNotes] = useState(true);
@@ -247,6 +247,7 @@ function IssuesTab({ restaurants }) {
                   saveState={saving[issue.key]}
                   onBlur={handleBlur}
                   loadingNotes={loadingNotes}
+                  canEditNotes={canEditNotes}
                 />
               ))}
             </tbody>
@@ -257,7 +258,7 @@ function IssuesTab({ restaurants }) {
   );
 }
 
-const IssueRow = memo(function IssueRow({ issue, idx, note, saveState, onBlur, loadingNotes }) {
+const IssueRow = memo(function IssueRow({ issue, idx, note, saveState, onBlur, loadingNotes, canEditNotes }) {
   const [localText, setLocalText] = useState(note);
   const [hovered, setHovered] = useState(false);
 
@@ -306,45 +307,55 @@ const IssueRow = memo(function IssueRow({ issue, idx, note, saveState, onBlur, l
         </span>
       </td>
       <td style={{ ...tdBase, minWidth: 260, width: '35%' }}>
-        <div style={{ position: 'relative' }}>
-          <textarea
-            value={localText}
-            onChange={e => setLocalText(e.target.value)}
-            onBlur={() => onBlur(issue.key, localText)}
-            placeholder={loadingNotes ? 'Loading...' : 'Add reason or comment…'}
-            disabled={loadingNotes}
-            rows={2}
-            style={{
-              width: '100%',
-              background: '#1a1d27',
-              border: `1px solid ${localText !== note ? '#6366f1' : '#2d3148'}`,
-              borderRadius: 8,
-              padding: '7px 10px',
-              color: '#e5e7eb',
-              fontSize: 12,
-              resize: 'vertical',
-              outline: 'none',
-              fontFamily: 'Inter, sans-serif',
-              lineHeight: 1.5,
-              transition: 'border-color 0.15s',
-              boxSizing: 'border-box',
-            }}
-            onFocus={e => e.target.style.borderColor = '#6366f1'}
-            onBlur={e => {
-              e.target.style.borderColor = localText !== note ? '#6366f1' : '#2d3148';
-              onBlur(issue.key, localText);
-            }}
-          />
-          {saveState && (
-            <span style={{
-              position: 'absolute', bottom: 6, right: 8,
-              fontSize: 10, color: saveState === 'saved' ? '#22c55e' : '#6366f1',
-              pointerEvents: 'none',
-            }}>
-              {saveState === 'saving' ? 'Saving…' : '✓ Saved'}
-            </span>
-          )}
-        </div>
+        {canEditNotes ? (
+          <div style={{ position: 'relative' }}>
+            <textarea
+              value={localText}
+              onChange={e => setLocalText(e.target.value)}
+              onBlur={() => onBlur(issue.key, localText)}
+              placeholder={loadingNotes ? 'Loading...' : 'Add reason or comment…'}
+              disabled={loadingNotes}
+              rows={2}
+              style={{
+                width: '100%',
+                background: '#1a1d27',
+                border: `1px solid ${localText !== note ? '#6366f1' : '#2d3148'}`,
+                borderRadius: 8,
+                padding: '7px 10px',
+                color: '#e5e7eb',
+                fontSize: 12,
+                resize: 'vertical',
+                outline: 'none',
+                fontFamily: 'Inter, sans-serif',
+                lineHeight: 1.5,
+                transition: 'border-color 0.15s',
+                boxSizing: 'border-box',
+              }}
+              onFocus={e => e.target.style.borderColor = '#6366f1'}
+              onBlur={e => {
+                e.target.style.borderColor = localText !== note ? '#6366f1' : '#2d3148';
+                onBlur(issue.key, localText);
+              }}
+            />
+            {saveState && (
+              <span style={{
+                position: 'absolute', bottom: 6, right: 8,
+                fontSize: 10, color: saveState === 'saved' ? '#22c55e' : '#6366f1',
+                pointerEvents: 'none',
+              }}>
+                {saveState === 'saving' ? 'Saving…' : '✓ Saved'}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div style={{
+            fontSize: 12, color: note ? '#d1d5db' : '#4b5563',
+            lineHeight: 1.5, padding: '7px 0',
+            fontStyle: note ? 'normal' : 'italic',
+          }}>
+            {note || 'No comment'}
+          </div>
+        )}
       </td>
     </tr>
   );

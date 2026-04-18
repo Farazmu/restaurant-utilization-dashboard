@@ -1,5 +1,7 @@
 import { kv } from '@vercel/kv';
 
+const EDIT_ALLOWED_TEAMS = new Set(['Admin', 'Customer Success']);
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -18,6 +20,10 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
+    const team = req.headers['x-team'] ?? '';
+    if (!EDIT_ALLOWED_TEAMS.has(team)) {
+      return res.status(403).json({ error: 'Not authorized to edit notes' });
+    }
     const { key, text } = req.body;
     if (!key) return res.status(400).json({ error: 'key required' });
     if (text && text.trim()) {

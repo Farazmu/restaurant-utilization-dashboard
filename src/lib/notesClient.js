@@ -1,3 +1,5 @@
+import { getSession } from './authStore.js';
+
 let cache = null; // { [key]: string }
 
 export async function getNotes() {
@@ -14,9 +16,13 @@ export async function getNotes() {
 
 export async function saveNote(key, text) {
   try {
+    const session = getSession();
     await fetch('/api/notes', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Team': session?.team ?? '',
+      },
       body: JSON.stringify({ key, text }),
     });
     if (cache) {
